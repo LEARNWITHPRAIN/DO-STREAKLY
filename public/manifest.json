@@ -1,0 +1,30 @@
+{
+  "name": "DO STREAKLY",
+  "short_name": "DO STREAKLY",
+  "description": "Better habits. Together. Build habits together. Challenge your friends. Stay accountable.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0F0D",
+  "theme_color": "#0B0F0D",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ],
+  "categories": ["productivity", "social", "lifestyle"]
+}
