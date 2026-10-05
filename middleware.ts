@@ -1,21 +1,53 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { updateSession } from './lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
-  try {
-    return await updateSession(request);
-  } catch (error) {
-    console.error("Middleware error caught safely:", error);
-    return NextResponse.next();
+  const pathname = request.nextUrl.pathname;
+
+  const isAuthRoute =
+    pathname === '/login' ||
+    pathname === '/signup' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password';
+
+  const isProtectedRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/habits') ||
+    pathname.startsWith('/challenges') ||
+    pathname.startsWith('/leaderboard') ||
+    pathname.startsWith('/friends') ||
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/onboarding');
+
+  const isDemo = request.cookies.get('streakly_demo')?.value === 'true';
+
+  // Check for Supabase auth cookie (no external library needed)
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(
+    (c) => c.name.includes('sb-') && c.name.includes('-auth-token')
+  );
+
+  const isLoggedIn = hasAuthCookie || isDemo;
+
+  // Redirect unauthenticated users away from protected routes
+  if (!isLoggedIn && isProtectedRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(url);
   }
+
+  // Redirect logged-in users away from auth pages
+  if (isLoggedIn && isAuthRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    /*
-     * Only run middleware on protected app routes and auth pages.
-     * Public pages like '/' (landing page), favicon, and static assets bypass middleware entirely.
-     */
     '/dashboard/:path*',
     '/habits/:path*',
     '/challenges/:path*',
