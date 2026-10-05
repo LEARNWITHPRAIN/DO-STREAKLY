@@ -13,12 +13,19 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for static files and assets:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - logo.jpg, icon-192.png, icon-512.png, manifest.json, sw.js
+     * Only run middleware on protected app routes and auth pages.
+     * Public pages like '/' (landing page), favicon, and static assets bypass middleware entirely.
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json|js)$).*)',
+    '/dashboard/:path*',
+    '/habits/:path*',
+    '/challenges/:path*',
+    '/leaderboard/:path*',
+    '/friends/:path*',
+    '/profile/:path*',
+    '/onboarding/:path*',
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/reset-password',
   ],
 };

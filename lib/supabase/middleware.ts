@@ -27,7 +27,7 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
-  // If Supabase environment variables are missing on Vercel, prevent crash
+  // If Supabase environment variables are missing on Vercel, allow demo or redirect
   if (!supabaseUrl || !supabaseAnonKey) {
     if (isProtectedRoute && !isDemo) {
       const url = request.nextUrl.clone();
@@ -38,29 +38,50 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  let user = null;
-  try {
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    });
+  // Quick check: does the user have any Supabase auth cookie or demo cookie?
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(c => c.name.includes('-auth-token'));
 
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  } catch (err) {
-    console.warn("Middleware auth session check failed:", err);
+  // If the user has neither an auth cookie nor demo mode, they are not logged in
+  if (!hasAuthCookie && !isDemo) {
+    if (isProtectedRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
+  }
+
+  let user = null;
+  if (hasAuthCookie) {
+    try {
+      const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+            try {
+              cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+              supabaseResponse = NextResponse.next({
+                request,
+              });
+              cookiesToSet.forEach(({ name, value, options }) =>
+                supabaseResponse.cookies.set(name, value, options)
+              );
+            } catch {
+              // Ignore cookie mutations if running in restricted edge context
+            }
+          },
+        },
+      });
+
+      const { data } = await supabase.auth.getUser();
+      user = data?.user ?? null;
+    } catch (err) {
+      console.warn("Middleware auth session check failed:", err);
+    }
   }
 
   const isAuthenticated = !!user || isDemo;
