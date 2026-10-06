@@ -1,12 +1,11 @@
 -- ====================================================================
 -- DO STREAKLY: PostgreSQL Database Schema for Supabase
--- Better habits. Together.
+-- Section 8 Data Model & Complete Social Challenges
 -- ====================================================================
 
--- Enable UUID extension if not enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. PROFILES TABLE
+-- 1. USERS / PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT UNIQUE,
@@ -18,246 +17,253 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   best_streak INTEGER DEFAULT 0 NOT NULL,
   habits_completed_count INTEGER DEFAULT 0 NOT NULL,
   challenges_won_count INTEGER DEFAULT 0 NOT NULL,
+  tutorial_done BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 2. HABITS TABLE
+-- If table already exists, alter to add tutorial_done
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'tutorial_done') THEN
+    ALTER TABLE public.profiles ADD COLUMN tutorial_done BOOLEAN DEFAULT FALSE NOT NULL;
+  END IF;
+END $$;
+
+-- 2. HABITS TABLE (Solo Habits)
+-- habits (id, user_id, name, icon, type: yes_no | measurable, unit, goal, time_of_day, use_timer, created_at)
 CREATE TABLE IF NOT EXISTS public.habits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
+  name TEXT NOT NULL,
   icon TEXT DEFAULT 'Flame' NOT NULL,
-  habit_type TEXT NOT NULL CHECK (habit_type IN ('boolean', 'measurable')),
-  target_value NUMERIC DEFAULT 1 NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('yes_no', 'measurable')),
   unit TEXT DEFAULT 'reps' NOT NULL,
-  frequency TEXT DEFAULT 'daily' NOT NULL CHECK (frequency IN ('daily', 'weekdays', 'weekends', 'custom')),
-  xp_value INTEGER DEFAULT 20 NOT NULL,
+  goal NUMERIC DEFAULT 1 NOT NULL,
+  time_of_day TEXT DEFAULT 'anytime' NOT NULL CHECK (time_of_day IN ('morning', 'afternoon', 'evening', 'anytime')),
+  use_timer BOOLEAN DEFAULT FALSE NOT NULL,
+  timer_duration_seconds INTEGER DEFAULT 900,
   is_archived BOOLEAN DEFAULT FALSE NOT NULL,
   is_paused BOOLEAN DEFAULT FALSE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 3. HABIT COMPLETIONS TABLE (with duplicate prevention)
-CREATE TABLE IF NOT EXISTS public.habit_completions (
+-- 3. HABIT LOGS TABLE
+-- habit_logs (id, habit_id, user_id, date, value, completed, note, created_at)
+CREATE TABLE IF NOT EXISTS public.habit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   habit_id UUID NOT NULL REFERENCES public.habits(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  completed_date DATE NOT NULL,
-  progress_value NUMERIC DEFAULT 1 NOT NULL,
-  xp_earned INTEGER DEFAULT 0 NOT NULL,
-  completed_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  CONSTRAINT unique_habit_daily_completion UNIQUE (habit_id, completed_date)
-);
-
--- 4. XP TRANSACTIONS (Auditable XP history)
-CREATE TABLE IF NOT EXISTS public.xp_transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  amount INTEGER NOT NULL,
-  source_type TEXT NOT NULL CHECK (source_type IN ('habit', 'challenge', 'streak_bonus', 'achievement')),
-  source_id TEXT,
-  description TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
-
--- 5. FRIENDSHIPS TABLE
-CREATE TABLE IF NOT EXISTS public.friendships (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  friend_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  date DATE NOT NULL,
+  value NUMERIC DEFAULT 1 NOT NULL,
+  completed BOOLEAN DEFAULT FALSE NOT NULL,
+  note TEXT,
   created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  CONSTRAINT unique_friendship UNIQUE (user_id, friend_id),
-  CONSTRAINT no_self_friendship CHECK (user_id != friend_id)
+  CONSTRAINT unique_habit_daily_log UNIQUE (habit_id, date)
 );
 
--- 6. CHALLENGES TABLE (Main Social USP)
+-- 4. ONBOARDING TABLE
+-- onboarding (id, user_id, wake_time, targets[], completed)
+CREATE TABLE IF NOT EXISTS public.onboarding (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  wake_time TEXT NOT NULL DEFAULT '07:00 AM',
+  targets TEXT[] DEFAULT '{}'::TEXT[],
+  completed BOOLEAN DEFAULT FALSE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  CONSTRAINT unique_user_onboarding UNIQUE (user_id)
+);
+
+-- 5. CHALLENGES TABLE (Friend Challenges / Journey)
+-- challenges (id, owner_id, name, duration_days, start_date, invite_code)
 CREATE TABLE IF NOT EXISTS public.challenges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  creator_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  habit_title TEXT NOT NULL,
-  habit_type TEXT NOT NULL DEFAULT 'boolean' CHECK (habit_type IN ('boolean', 'measurable')),
-  target_value NUMERIC DEFAULT 1 NOT NULL,
-  unit TEXT DEFAULT 'reps',
-  duration_days INTEGER DEFAULT 30 NOT NULL,
+  owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  duration_days INTEGER DEFAULT 14 NOT NULL,
   start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  xp_reward INTEGER DEFAULT 300 NOT NULL,
+  invite_code TEXT UNIQUE NOT NULL,
+  description TEXT,
   rules TEXT,
   status TEXT DEFAULT 'active' NOT NULL CHECK (status IN ('upcoming', 'active', 'completed', 'cancelled')),
   created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 7. CHALLENGE PARTICIPANTS TABLE
-CREATE TABLE IF NOT EXISTS public.challenge_participants (
+-- 6. CHALLENGE HABITS TABLE
+-- challenge_habits (id, challenge_id, name, type, unit, target, points, log_before_midnight)
+CREATE TABLE IF NOT EXISTS public.challenge_habits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  challenge_id UUID NOT NULL REFERENCES public.challenges(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('yes_no', 'measurable')),
+  unit TEXT DEFAULT 'reps',
+  target NUMERIC DEFAULT 1 NOT NULL,
+  points INTEGER DEFAULT 10 NOT NULL,
+  log_before_midnight BOOLEAN DEFAULT FALSE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- 7. CHALLENGE MEMBERS TABLE
+-- challenge_members (id, challenge_id, user_id, joined_at, total_points)
+CREATE TABLE IF NOT EXISTS public.challenge_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   challenge_id UUID NOT NULL REFERENCES public.challenges(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  total_xp INTEGER DEFAULT 0 NOT NULL,
-  progress_count INTEGER DEFAULT 0 NOT NULL,
-  status TEXT DEFAULT 'joined' NOT NULL CHECK (status IN ('invited', 'joined', 'declined', 'completed')),
+  total_points INTEGER DEFAULT 0 NOT NULL,
   joined_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  CONSTRAINT unique_challenge_participant UNIQUE (challenge_id, user_id)
+  CONSTRAINT unique_challenge_member UNIQUE (challenge_id, user_id)
 );
 
--- 8. ACHIEVEMENTS TABLE
-CREATE TABLE IF NOT EXISTS public.achievements (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  icon TEXT NOT NULL,
-  xp_reward INTEGER DEFAULT 50 NOT NULL,
-  tier TEXT DEFAULT 'bronze' NOT NULL CHECK (tier IN ('bronze', 'silver', 'gold', 'platinum'))
-);
-
--- 9. USER ACHIEVEMENTS TABLE
-CREATE TABLE IF NOT EXISTS public.user_achievements (
+-- 8. CHALLENGE LOGS TABLE
+-- challenge_logs (id, challenge_id, user_id, challenge_habit_id, date, value, points_awarded)
+CREATE TABLE IF NOT EXISTS public.challenge_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  challenge_id UUID NOT NULL REFERENCES public.challenges(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  achievement_id TEXT NOT NULL REFERENCES public.achievements(id) ON DELETE CASCADE,
-  unlocked_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  CONSTRAINT unique_user_achievement UNIQUE (user_id, achievement_id)
+  challenge_habit_id UUID NOT NULL REFERENCES public.challenge_habits(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  value NUMERIC DEFAULT 1 NOT NULL,
+  points_awarded INTEGER DEFAULT 0 NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  CONSTRAINT unique_user_challenge_habit_daily UNIQUE (challenge_id, user_id, challenge_habit_id, date)
 );
 
--- Seed Initial Achievements
-INSERT INTO public.achievements (id, title, description, icon, xp_reward, tier) VALUES
-('first_habit', 'First Step', 'Created your very first habit', 'Sparkles', 25, 'bronze'),
-('first_completion', 'Streak Ignition', 'Completed your first daily habit', 'Flame', 30, 'bronze'),
-('streak_3', 'On A Roll', 'Maintained a 3-day habit streak', 'Zap', 50, 'bronze'),
-('streak_7', 'Week Warrior', 'Maintained a 7-day habit streak', 'Award', 100, 'silver'),
-('streak_30', 'Habit Master', 'Completed a 30-day streak', 'Crown', 300, 'gold'),
-('challenge_join', 'Challenger', 'Joined your first friend challenge', 'Users', 50, 'bronze'),
-('challenge_win', 'Champion', 'Won 1st place in a friend challenge', 'Trophy', 250, 'gold'),
-('level_5', 'High Climber', 'Reached Level 5 in DO STREAKLY', 'ShieldCheck', 100, 'silver'),
-('xp_1000', 'XP Legend', 'Accumulated 1,000 Total XP', 'Target', 150, 'silver')
-ON CONFLICT (id) DO NOTHING;
-
--- 10. INDEXES FOR PERFORMANCE
+-- 9. PERFORMANCE INDEXES
 CREATE INDEX IF NOT EXISTS idx_habits_user ON public.habits(user_id);
-CREATE INDEX IF NOT EXISTS idx_habit_completions_habit_date ON public.habit_completions(habit_id, completed_date);
-CREATE INDEX IF NOT EXISTS idx_habit_completions_user_date ON public.habit_completions(user_id, completed_date);
-CREATE INDEX IF NOT EXISTS idx_xp_transactions_user ON public.xp_transactions(user_id);
-CREATE INDEX IF NOT EXISTS idx_friendships_users ON public.friendships(user_id, friend_id);
-CREATE INDEX IF NOT EXISTS idx_challenges_status ON public.challenges(status);
-CREATE INDEX IF NOT EXISTS idx_challenge_participants ON public.challenge_participants(challenge_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_date ON public.habit_logs(habit_id, date);
+CREATE INDEX IF NOT EXISTS idx_challenges_owner ON public.challenges(owner_id);
+CREATE INDEX IF NOT EXISTS idx_challenges_invite_code ON public.challenges(invite_code);
+CREATE INDEX IF NOT EXISTS idx_challenge_members ON public.challenge_members(challenge_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_habits ON public.challenge_habits(challenge_id);
+CREATE INDEX IF NOT EXISTS idx_challenge_logs ON public.challenge_logs(challenge_id, user_id, date);
 
--- 11. ROW LEVEL SECURITY (RLS) POLICIES
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.habits ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.habit_completions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.xp_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.habit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.onboarding ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.challenges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.challenge_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.achievements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.challenge_habits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.challenge_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.challenge_logs ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Public can read for leaderboards, user can update their own
+-- Profiles: Public can read for challenge leaderboards, user updates own
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Habits: Only owner can view, insert, update, delete
+-- Solo Habits: Only user can view and manage their own habits
+DROP POLICY IF EXISTS "Users can view own habits" ON public.habits;
 CREATE POLICY "Users can view own habits" ON public.habits
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own habits" ON public.habits;
 CREATE POLICY "Users can insert own habits" ON public.habits
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own habits" ON public.habits;
 CREATE POLICY "Users can update own habits" ON public.habits
   FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own habits" ON public.habits;
 CREATE POLICY "Users can delete own habits" ON public.habits
   FOR DELETE USING (auth.uid() = user_id);
 
--- Habit Completions: Users manage their completions
-CREATE POLICY "Users can view own completions" ON public.habit_completions
+-- Solo Habit Logs: Users only see and manage their own logs
+DROP POLICY IF EXISTS "Users can view own logs" ON public.habit_logs;
+CREATE POLICY "Users can view own logs" ON public.habit_logs
   FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own completions" ON public.habit_completions
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can manage own logs" ON public.habit_logs;
+CREATE POLICY "Users can manage own logs" ON public.habit_logs
+  FOR ALL USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own completions" ON public.habit_completions
-  FOR UPDATE USING (auth.uid() = user_id);
+-- Onboarding: User only manages their own onboarding
+DROP POLICY IF EXISTS "Users can manage own onboarding" ON public.onboarding;
+CREATE POLICY "Users can manage own onboarding" ON public.onboarding
+  FOR ALL USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete own completions" ON public.habit_completions
-  FOR DELETE USING (auth.uid() = user_id);
+-- Challenges:
+-- Users can view challenges if they are the owner OR a member OR via invite_code lookup
+DROP POLICY IF EXISTS "Users view their challenges" ON public.challenges;
+CREATE POLICY "Users view their challenges" ON public.challenges
+  FOR SELECT USING (
+    auth.uid() = owner_id 
+    OR EXISTS (SELECT 1 FROM public.challenge_members cm WHERE cm.challenge_id = challenges.id AND cm.user_id = auth.uid())
+    OR status = 'active'
+  );
 
--- XP Transactions: Users can view own transactions
-CREATE POLICY "Users can view own xp transactions" ON public.xp_transactions
-  FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Authenticated users create challenges" ON public.challenges;
+CREATE POLICY "Authenticated users create challenges" ON public.challenges
+  FOR INSERT WITH CHECK (auth.uid() = owner_id);
 
-CREATE POLICY "Users can insert own xp transactions" ON public.xp_transactions
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Owners update challenges" ON public.challenges;
+CREATE POLICY "Owners update challenges" ON public.challenges
+  FOR UPDATE USING (auth.uid() = owner_id);
 
--- Friendships: Users can view their own friendships
-CREATE POLICY "Users can view their friendships" ON public.friendships
-  FOR SELECT USING (auth.uid() = user_id OR auth.uid() = friend_id);
+DROP POLICY IF EXISTS "Owners delete challenges" ON public.challenges;
+CREATE POLICY "Owners delete challenges" ON public.challenges
+  FOR DELETE USING (auth.uid() = owner_id);
 
-CREATE POLICY "Users can create friendships" ON public.friendships
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their friendships" ON public.friendships
-  FOR UPDATE USING (auth.uid() = user_id OR auth.uid() = friend_id);
-
-CREATE POLICY "Users can delete their friendships" ON public.friendships
-  FOR DELETE USING (auth.uid() = user_id OR auth.uid() = friend_id);
-
--- Challenges: Viewable by everyone (for discovery and friend challenges)
-CREATE POLICY "Challenges viewable by authenticated users" ON public.challenges
+-- Challenge Habits:
+DROP POLICY IF EXISTS "View challenge habits" ON public.challenge_habits;
+CREATE POLICY "View challenge habits" ON public.challenge_habits
   FOR SELECT USING (true);
 
-CREATE POLICY "Authenticated users can create challenges" ON public.challenges
-  FOR INSERT WITH CHECK (auth.uid() = creator_id);
+DROP POLICY IF EXISTS "Owners manage challenge habits" ON public.challenge_habits;
+CREATE POLICY "Owners manage challenge habits" ON public.challenge_habits
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.challenges c WHERE c.id = challenge_habits.challenge_id AND c.owner_id = auth.uid())
+  );
 
-CREATE POLICY "Creators can update challenges" ON public.challenges
-  FOR UPDATE USING (auth.uid() = creator_id);
-
--- Challenge Participants: Viewable by everyone, user can join/leave
-CREATE POLICY "Participants viewable by authenticated users" ON public.challenge_participants
+-- Challenge Members:
+DROP POLICY IF EXISTS "View challenge members" ON public.challenge_members;
+CREATE POLICY "View challenge members" ON public.challenge_members
   FOR SELECT USING (true);
 
-CREATE POLICY "Users can join challenges" ON public.challenge_participants
+DROP POLICY IF EXISTS "Users can join challenge" ON public.challenge_members;
+CREATE POLICY "Users can join challenge" ON public.challenge_members
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update own challenge participation" ON public.challenge_participants
-  FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Members or owners can remove/update member" ON public.challenge_members;
+CREATE POLICY "Members or owners can remove/update member" ON public.challenge_members
+  FOR ALL USING (
+    auth.uid() = user_id 
+    OR EXISTS (SELECT 1 FROM public.challenges c WHERE c.id = challenge_members.challenge_id AND c.owner_id = auth.uid())
+  );
 
-CREATE POLICY "Users can leave challenge" ON public.challenge_participants
-  FOR DELETE USING (auth.uid() = user_id);
+-- Challenge Logs:
+DROP POLICY IF EXISTS "View challenge logs" ON public.challenge_logs;
+CREATE POLICY "View challenge logs" ON public.challenge_logs
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.challenge_members cm WHERE cm.challenge_id = challenge_logs.challenge_id AND cm.user_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM public.challenges c WHERE c.id = challenge_logs.challenge_id AND c.owner_id = auth.uid())
+  );
 
--- Achievements: Public read
-CREATE POLICY "Achievements readable by all" ON public.achievements
-  FOR SELECT USING (true);
-
--- User Achievements: Viewable by all (for profiles), manageable by owner
-CREATE POLICY "User achievements viewable by all" ON public.user_achievements
-  FOR SELECT USING (true);
-
-CREATE POLICY "Users can earn achievements" ON public.user_achievements
+DROP POLICY IF EXISTS "Users log challenge habits" ON public.challenge_logs;
+CREATE POLICY "Users log challenge habits" ON public.challenge_logs
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- 12. AUTOMATIC PROFILE CREATION TRIGGER ON AUTH SIGNUP
+-- Profile trigger on auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, full_name, avatar_url)
+  INSERT INTO public.profiles (id, username, full_name, avatar_url, tutorial_done)
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
     COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    COALESCE(new.raw_user_meta_data->>'avatar_url', '')
+    COALESCE(new.raw_user_meta_data->>'avatar_url', ''),
+    FALSE
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN new;

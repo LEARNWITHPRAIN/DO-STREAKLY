@@ -17,62 +17,79 @@ import {
   AlarmClock,
   ArrowRight,
   Check,
+  Clock,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { TimeOfDay } from "@/types";
 
 const SUGGESTED_HABITS = [
   {
-    title: "Morning 5km Run",
-    description: "Daily cardio engine",
+    name: "Morning 5km Run",
+    description: "Daily cardio engine before breakfast",
     icon: "Footprints",
     type: "measurable" as const,
-    target: 5,
+    goal: 5,
     unit: "km",
-    xp: 40,
+    time_of_day: "morning" as TimeOfDay,
+    use_timer: false,
+    benefit: "Cardio & Stamina",
   },
   {
-    title: "Read 20 Pages",
-    description: "Wisdom & daily learning",
+    name: "Cold Shower / Wakeup",
+    description: "Jumpstart your focus and morning discipline",
+    icon: "AlarmClock",
+    type: "yes_no" as const,
+    goal: 1,
+    unit: "time",
+    time_of_day: "morning" as TimeOfDay,
+    use_timer: false,
+    benefit: "Mental Sharpness",
+  },
+  {
+    name: "Read Non-Fiction Book",
+    description: "Daily reading & continuous learning",
     icon: "BookOpen",
     type: "measurable" as const,
-    target: 20,
+    goal: 20,
     unit: "pages",
-    xp: 20,
+    time_of_day: "afternoon" as TimeOfDay,
+    use_timer: false,
+    benefit: "Knowledge & Focus",
   },
   {
-    title: "50 Push-Ups",
-    description: "Upper body strength",
+    name: "50 Push-Ups",
+    description: "Upper body strength and muscle tone",
     icon: "Dumbbell",
     type: "measurable" as const,
-    target: 50,
+    goal: 50,
     unit: "reps",
-    xp: 25,
+    time_of_day: "morning" as TimeOfDay,
+    use_timer: false,
+    benefit: "Physical Strength",
   },
   {
-    title: "Wake up by 6:00 AM",
-    description: "Win the morning",
-    icon: "AlarmClock",
-    type: "boolean" as const,
-    target: 1,
-    unit: "times",
-    xp: 15,
-  },
-  {
-    title: "90 Min Deep Work",
-    description: "Zero notifications sprint",
+    name: "Deep Work Sprint (Timer)",
+    description: "25-minute flow state block with timer",
     icon: "Brain",
     type: "measurable" as const,
-    target: 90,
+    goal: 25,
     unit: "mins",
-    xp: 35,
+    time_of_day: "afternoon" as TimeOfDay,
+    use_timer: true,
+    timer_duration_seconds: 1500,
+    benefit: "Peak Productivity",
   },
   {
-    title: "No Junk Food",
-    description: "Clean nutrition discipline",
-    icon: "Flame",
-    type: "boolean" as const,
-    target: 1,
-    unit: "times",
-    xp: 20,
+    name: "Evening Reflection & Notes",
+    description: "Review today's wins and set tomorrow's priority",
+    icon: "Moon",
+    type: "yes_no" as const,
+    goal: 1,
+    unit: "time",
+    time_of_day: "evening" as TimeOfDay,
+    use_timer: false,
+    benefit: "Mindful Recovery",
   },
 ];
 
@@ -81,7 +98,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [selectedHabits, setSelectedHabits] = useState<number[]>([0, 1, 2]); // default 3 selected
+  const [wakeTime, setWakeTime] = useState("06:30 AM");
+  const [selectedHabits, setSelectedHabits] = useState<number[]>([0, 1, 4]); // First habit selected by default
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -102,30 +120,44 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     setSaving(true);
     try {
-      // 1. Update Profile
+      // 1. Update Profile & mark tutorial ready to trigger on Today
       await StreaklyService.updateProfile({
-        full_name: name || "Streaker",
-        username: username || "streaker_1",
+        full_name: name.trim() || "Streaker",
+        username: username.trim() || "streaker_1",
+        tutorial_done: false, // ensures App Tutorial triggers
       });
 
-      // 2. Add selected habits
-      for (const idx of selectedHabits) {
-        const item = SUGGESTED_HABITS[idx];
+      // 2. Save onboarding targets
+      const chosenHabits = (selectedHabits.length > 0 ? selectedHabits : [0]).map(
+        (i) => SUGGESTED_HABITS[i]
+      );
+
+      await StreaklyService.saveOnboarding({
+        wake_time: wakeTime,
+        targets: chosenHabits.map((h) => h.name),
+      });
+
+      // 3. Clear existing habits and add chosen ones
+      for (const item of chosenHabits) {
         await StreaklyService.createHabit({
-          title: item.title,
+          name: item.name,
+          title: item.name,
           description: item.description,
           icon: item.icon,
-          habit_type: item.type,
-          target_value: item.target,
+          type: item.type,
+          goal: item.goal,
           unit: item.unit,
+          time_of_day: item.time_of_day,
+          use_timer: item.use_timer,
+          timer_duration_seconds: item.timer_duration_seconds,
           frequency: "daily",
-          xp_value: item.xp,
         });
       }
 
+      // 4. Land on Today with tutorial
       router.push("/dashboard");
     } catch (e) {
-      console.error(e);
+      console.error("Onboarding error:", e);
       router.push("/dashboard");
     } finally {
       setSaving(false);
@@ -135,10 +167,10 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-[#0B0F0D] flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-xl space-y-6">
-        {/* Brand header */}
+        {/* Brand Header */}
         <div className="text-center space-y-1">
           <div className="inline-flex items-center gap-2 mb-2">
-            <div className="relative h-10 w-10 rounded-xl overflow-hidden border border-[#B6F34A]/50">
+            <div className="relative h-10 w-10 rounded-xl overflow-hidden border border-[#B6F34A]/50 shadow-glow-sm">
               <Image src="/logo.jpg" alt="DO STREAKLY" fill className="object-cover" priority />
             </div>
             <span className="font-display text-xl font-black text-white">
@@ -159,40 +191,60 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <Card className="border-[#202E24] bg-[#121814] p-6 md:p-8">
+        <Card className="border-[#202E24] bg-[#121814] p-6 md:p-8 rounded-2xl shadow-xl">
           <CardContent className="p-0">
             {step === 1 ? (
               <div className="space-y-5">
                 <div>
                   <h2 className="font-display text-2xl font-black text-white">
-                    What should we call you?
+                    Set up your daily profile
                   </h2>
                   <p className="text-sm text-gray-400 mt-1">
-                    Your name and handle shown on challenge leaderboards and to friends.
+                    Takes under 60 seconds to personalize your morning routine.
                   </p>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <label className="text-xs font-semibold text-gray-300 block mb-1">
-                      Display Name
+                      Your Name
                     </label>
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Alex Vance"
+                      className="bg-[#0B0F0D] border-[#202E24] focus:border-[#B6F34A] text-white"
                     />
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-gray-300 block mb-1">
-                      Username
+                      Username / Handle
                     </label>
                     <Input
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="e.g. alex_streaker"
+                      className="bg-[#0B0F0D] border-[#202E24] focus:border-[#B6F34A] text-white"
                     />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-gray-300 block mb-1">
+                      Typical Wake-up Time
+                    </label>
+                    <div className="relative">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        value={wakeTime}
+                        onChange={(e) => setWakeTime(e.target.value)}
+                        placeholder="06:30 AM"
+                        className="bg-[#0B0F0D] border-[#202E24] focus:border-[#B6F34A] text-white pl-9"
+                      />
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      Helps categorize morning habits for maximum consistency.
+                    </p>
                   </div>
                 </div>
 
@@ -201,13 +253,13 @@ export default function OnboardingPage() {
                     onClick={() => router.push("/dashboard")}
                     className="text-xs text-gray-400 hover:text-white"
                   >
-                    Skip onboarding
+                    Skip to Today
                   </button>
                   <Button
                     onClick={() => setStep(2)}
-                    className="gap-2 shadow-glow"
+                    className="gap-2 bg-[#B6F34A] text-[#0B0F0D] hover:bg-[#a3e635] font-bold shadow-glow-sm"
                   >
-                    <span>Next: Choose Habits</span>
+                    <span>Choose Habits</span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -216,10 +268,10 @@ export default function OnboardingPage() {
               <div className="space-y-5">
                 <div>
                   <h2 className="font-display text-2xl font-black text-white">
-                    What habits do you want to build?
+                    Pick your starter habits
                   </h2>
                   <p className="text-sm text-gray-400 mt-1">
-                    Select a few starter habits. You can always customize or add more later.
+                    Your first habit will land on your Today screen ready to track.
                   </p>
                 </div>
 
@@ -228,7 +280,7 @@ export default function OnboardingPage() {
                     const isSelected = selectedHabits.includes(idx);
                     return (
                       <div
-                        key={item.title}
+                        key={item.name}
                         onClick={() => toggleSelectHabit(idx)}
                         className={`cursor-pointer rounded-xl border p-3 flex items-start justify-between gap-2 transition-all ${
                           isSelected
@@ -237,14 +289,24 @@ export default function OnboardingPage() {
                         }`}
                       >
                         <div>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-[10px] uppercase font-bold text-[#B6F34A] px-1.5 py-0.5 rounded bg-[#B6F34A]/10">
+                              {item.time_of_day}
+                            </span>
+                            {item.use_timer && (
+                              <span className="text-[10px] font-bold text-amber-400 px-1.5 py-0.5 rounded bg-amber-400/10">
+                                ⏱️ Timer
+                              </span>
+                            )}
+                          </div>
                           <h4 className="font-display text-sm font-bold text-white">
-                            {item.title}
+                            {item.name}
                           </h4>
                           <p className="text-[11px] text-gray-400 mt-0.5">
                             {item.description}
                           </p>
-                          <span className="inline-block mt-1.5 text-[10px] font-bold text-[#B6F34A]">
-                            +{item.xp} XP
+                          <span className="inline-block mt-1 text-[10px] font-semibold text-gray-400">
+                            {item.benefit}
                           </span>
                         </div>
                         <div
@@ -269,10 +331,10 @@ export default function OnboardingPage() {
                   <Button
                     onClick={handleFinish}
                     disabled={saving}
-                    className="gap-2 shadow-glow"
+                    className="gap-2 bg-[#B6F34A] text-[#0B0F0D] hover:bg-[#a3e635] font-bold shadow-glow-sm"
                   >
                     <Sparkles className="h-4 w-4" />
-                    <span>{saving ? "Setting up..." : "Launch DO STREAKLY"}</span>
+                    <span>{saving ? "Setting up..." : "Launch Today"}</span>
                   </Button>
                 </div>
               </div>

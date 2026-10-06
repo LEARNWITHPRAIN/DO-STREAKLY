@@ -1,20 +1,34 @@
 import { createClient } from "@/lib/supabase/client";
-import { Habit, Profile, Challenge, ChallengeParticipant, Friendship, Achievement, XPTransaction } from "@/types";
-import { formatDate, calculateLevel } from "@/lib/utils";
+import {
+  Habit,
+  Profile,
+  Challenge,
+  ChallengeHabit,
+  ChallengeMember,
+  ChallengeLog,
+  HabitLog,
+  TimeOfDay,
+} from "@/types";
+import { formatDate } from "@/lib/utils";
 
-// Initial Demo Seed Data for instant out-of-the-box readiness
+// Seed habits matching Section 8 schema (no XP in solo mode)
 const DEFAULT_HABITS: Habit[] = [
   {
     id: "habit-1",
     user_id: "demo-user",
+    name: "Morning 5km Run",
     title: "Morning 5km Run",
     description: "Keep the cardio engine firing before breakfast",
     icon: "Footprints",
+    type: "measurable",
     habit_type: "measurable",
+    goal: 5,
     target_value: 5,
     unit: "km",
+    time_of_day: "morning",
+    use_timer: false,
     frequency: "daily",
-    xp_value: 40,
+    xp_value: 0,
     is_archived: false,
     is_paused: false,
     created_at: new Date().toISOString(),
@@ -25,14 +39,19 @@ const DEFAULT_HABITS: Habit[] = [
   {
     id: "habit-2",
     user_id: "demo-user",
-    title: "Read Non-Fiction Book",
+    name: "Read Non-Fiction",
+    title: "Read Non-Fiction",
     description: "Continuous learning and mental sharpness",
     icon: "BookOpen",
+    type: "measurable",
     habit_type: "measurable",
+    goal: 20,
     target_value: 20,
     unit: "pages",
+    time_of_day: "afternoon",
+    use_timer: false,
     frequency: "daily",
-    xp_value: 20,
+    xp_value: 0,
     is_archived: false,
     is_paused: false,
     created_at: new Date().toISOString(),
@@ -43,14 +62,19 @@ const DEFAULT_HABITS: Habit[] = [
   {
     id: "habit-3",
     user_id: "demo-user",
-    title: "50 Push-Ups Challenge",
+    name: "50 Push-Ups",
+    title: "50 Push-Ups",
     description: "Daily upper body discipline",
     icon: "Dumbbell",
+    type: "measurable",
     habit_type: "measurable",
+    goal: 50,
     target_value: 50,
     unit: "reps",
+    time_of_day: "morning",
+    use_timer: false,
     frequency: "daily",
-    xp_value: 25,
+    xp_value: 0,
     is_archived: false,
     is_paused: false,
     created_at: new Date().toISOString(),
@@ -61,14 +85,19 @@ const DEFAULT_HABITS: Habit[] = [
   {
     id: "habit-4",
     user_id: "demo-user",
-    title: "Cold Shower / Wake up by 6 AM",
+    name: "Cold Shower / 6 AM Wakeup",
+    title: "Cold Shower / 6 AM Wakeup",
     description: "Win the morning, win the day",
     icon: "AlarmClock",
+    type: "yes_no",
     habit_type: "boolean",
+    goal: 1,
     target_value: 1,
-    unit: "times",
+    unit: "time",
+    time_of_day: "morning",
+    use_timer: false,
     frequency: "daily",
-    xp_value: 15,
+    xp_value: 0,
     is_archived: false,
     is_paused: false,
     created_at: new Date().toISOString(),
@@ -79,19 +108,25 @@ const DEFAULT_HABITS: Habit[] = [
   {
     id: "habit-5",
     user_id: "demo-user",
-    title: "Deep Work (Zero Distraction)",
-    description: "90 minutes uninterrupted focus on core project",
+    name: "Deep Work Sprint",
+    title: "Deep Work Sprint",
+    description: "25-minute uninterrupted flow state session",
     icon: "Brain",
+    type: "measurable",
     habit_type: "measurable",
-    target_value: 90,
+    goal: 25,
+    target_value: 25,
     unit: "mins",
+    time_of_day: "afternoon",
+    use_timer: true,
+    timer_duration_seconds: 1500, // 25 mins
     frequency: "daily",
-    xp_value: 30,
+    xp_value: 0,
     is_archived: false,
     is_paused: false,
     created_at: new Date().toISOString(),
     is_completed_today: false,
-    today_progress: 45,
+    today_progress: 0,
     current_streak: 5,
   },
 ];
@@ -101,234 +136,172 @@ const DEFAULT_PROFILE: Profile = {
   username: "alex_streaker",
   full_name: "Alex Vance",
   avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-  total_xp: 1240,
-  level: 4,
+  total_xp: 0,
+  level: 1,
   current_streak: 12,
   best_streak: 18,
   habits_completed_count: 84,
   challenges_won_count: 2,
+  tutorial_done: false,
   created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
 };
 
 const DEFAULT_CHALLENGES: Challenge[] = [
   {
-    id: "chal-1",
-    creator_id: "demo-friend-1",
-    title: "30 Day Push-Up Challenge",
-    description: "50 push-ups every single day. No excuses. Highest streak wins the crown.",
-    habit_title: "50 Push-Ups",
-    habit_type: "measurable",
-    target_value: 50,
-    unit: "reps",
+    id: "chal-pushup-1",
+    owner_id: "friend-1",
+    name: "30-Day Push-Up Challenge",
+    description: "50 push-ups daily before midnight. Stay accountable with friends.",
     duration_days: 30,
-    start_date: formatDate(new Date(Date.now() - 12 * 86400000)),
-    end_date: formatDate(new Date(Date.now() + 18 * 86400000)),
-    xp_reward: 350,
-    rules: "Log at least 50 reps daily before midnight.",
+    start_date: formatDate(new Date(Date.now() - 11 * 86400000)),
+    invite_code: "PUSH30",
     status: "active",
     created_at: new Date().toISOString(),
-    participants_count: 5,
+    habits: [
+      {
+        id: "ch-h-1",
+        challenge_id: "chal-pushup-1",
+        name: "50 Daily Push-ups",
+        type: "measurable",
+        unit: "reps",
+        target: 50,
+        points: 20,
+        log_before_midnight: true,
+      },
+    ],
+    members: [
+      {
+        id: "cm-1",
+        challenge_id: "chal-pushup-1",
+        user_id: "friend-1",
+        joined_at: new Date(Date.now() - 12 * 86400000).toISOString(),
+        total_points: 220,
+        days_logged: 11,
+        profile: {
+          id: "friend-1",
+          username: "rahul_fit",
+          full_name: "Rahul Sharma",
+          avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+          total_xp: 220,
+          level: 2,
+          current_streak: 15,
+          best_streak: 22,
+          habits_completed_count: 110,
+          challenges_won_count: 3,
+          created_at: new Date().toISOString(),
+        },
+      },
+      {
+        id: "cm-2",
+        challenge_id: "chal-pushup-1",
+        user_id: "demo-user",
+        joined_at: new Date(Date.now() - 11 * 86400000).toISOString(),
+        total_points: 200,
+        days_logged: 10,
+        profile: DEFAULT_PROFILE,
+      },
+      {
+        id: "cm-3",
+        challenge_id: "chal-pushup-1",
+        user_id: "friend-2",
+        joined_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+        total_points: 160,
+        days_logged: 8,
+        profile: {
+          id: "friend-2",
+          username: "prakhar_dev",
+          full_name: "Prakhar Gupta",
+          avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+          total_xp: 160,
+          level: 2,
+          current_streak: 12,
+          best_streak: 18,
+          habits_completed_count: 88,
+          challenges_won_count: 2,
+          created_at: new Date().toISOString(),
+        },
+      },
+    ],
+    participants_count: 3,
     user_joined: true,
     user_rank: 2,
-    user_xp: 320,
+    user_points: 200,
+    days_logged: 10,
+    total_days: 30,
+    days_remaining: 19,
   },
   {
-    id: "chal-2",
-    creator_id: "demo-user",
-    title: "Morning 5K Grind",
-    description: "Run 5km every weekday morning. Stay accountable together.",
-    habit_title: "5km Run",
-    habit_type: "measurable",
-    target_value: 5,
-    unit: "km",
+    id: "chal-morning-2",
+    owner_id: "demo-user",
+    name: "Morning 5K Grind",
+    description: "Run 5km every weekday morning. Highest points win.",
     duration_days: 14,
     start_date: formatDate(new Date(Date.now() - 4 * 86400000)),
-    end_date: formatDate(new Date(Date.now() + 10 * 86400000)),
-    xp_reward: 200,
-    rules: "Outdoor or treadmill 5km logs.",
+    invite_code: "RUN5K",
     status: "active",
     created_at: new Date().toISOString(),
-    participants_count: 4,
+    habits: [
+      {
+        id: "ch-h-2",
+        challenge_id: "chal-morning-2",
+        name: "Morning 5km Run",
+        type: "measurable",
+        unit: "km",
+        target: 5,
+        points: 25,
+        log_before_midnight: true,
+      },
+    ],
+    members: [
+      {
+        id: "cm-m1",
+        challenge_id: "chal-morning-2",
+        user_id: "demo-user",
+        joined_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+        total_points: 100,
+        days_logged: 4,
+        profile: DEFAULT_PROFILE,
+      },
+      {
+        id: "cm-m2",
+        challenge_id: "chal-morning-2",
+        user_id: "friend-4",
+        joined_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+        total_points: 75,
+        days_logged: 3,
+        profile: {
+          id: "friend-4",
+          username: "sarah_zen",
+          full_name: "Sarah Miller",
+          avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+          total_xp: 75,
+          level: 1,
+          current_streak: 7,
+          best_streak: 11,
+          habits_completed_count: 60,
+          challenges_won_count: 1,
+          created_at: new Date().toISOString(),
+        },
+      },
+    ],
+    participants_count: 2,
     user_joined: true,
     user_rank: 1,
-    user_xp: 280,
-  },
-  {
-    id: "chal-3",
-    creator_id: "demo-friend-2",
-    title: "Zero Junk Food Sprint",
-    description: "Eat clean, cut processed sugar and fast food for 21 days straight.",
-    habit_title: "Clean Eating",
-    habit_type: "boolean",
-    target_value: 1,
-    unit: "day",
-    duration_days: 21,
-    start_date: formatDate(new Date(Date.now() + 2 * 86400000)),
-    end_date: formatDate(new Date(Date.now() + 23 * 86400000)),
-    xp_reward: 250,
-    rules: "Honesty policy. One strike per week maximum.",
-    status: "upcoming",
-    created_at: new Date().toISOString(),
-    participants_count: 3,
-    user_joined: false,
-    user_rank: 0,
-    user_xp: 0,
-  },
-];
-
-const DEFAULT_FRIENDS: Profile[] = [
-  {
-    id: "friend-1",
-    username: "rahul_fit",
-    full_name: "Rahul Sharma",
-    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    total_xp: 1420,
-    level: 5,
-    current_streak: 15,
-    best_streak: 22,
-    habits_completed_count: 110,
-    challenges_won_count: 3,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "friend-2",
-    username: "prakhar_dev",
-    full_name: "Prakhar Gupta",
-    avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    total_xp: 1240,
-    level: 4,
-    current_streak: 12,
-    best_streak: 18,
-    habits_completed_count: 88,
-    challenges_won_count: 2,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "friend-3",
-    username: "aman_verma",
-    full_name: "Aman Verma",
-    avatar_url: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
-    total_xp: 1080,
-    level: 4,
-    current_streak: 9,
-    best_streak: 14,
-    habits_completed_count: 72,
-    challenges_won_count: 1,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "friend-4",
-    username: "sarah_zen",
-    full_name: "Sarah Miller",
-    avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-    total_xp: 940,
-    level: 3,
-    current_streak: 7,
-    best_streak: 11,
-    habits_completed_count: 60,
-    challenges_won_count: 1,
-    created_at: new Date().toISOString(),
-  },
-];
-
-const DEFAULT_ACHIEVEMENTS: Achievement[] = [
-  {
-    id: "first_habit",
-    title: "First Step",
-    description: "Created your very first habit",
-    icon: "Sparkles",
-    xp_reward: 25,
-    tier: "bronze",
-    unlocked: true,
-    unlocked_at: new Date(Date.now() - 28 * 86400000).toISOString(),
-  },
-  {
-    id: "first_completion",
-    title: "Streak Ignition",
-    description: "Completed your first daily habit",
-    icon: "Flame",
-    xp_reward: 30,
-    tier: "bronze",
-    unlocked: true,
-    unlocked_at: new Date(Date.now() - 28 * 86400000).toISOString(),
-  },
-  {
-    id: "streak_3",
-    title: "On A Roll",
-    description: "Maintained a 3-day habit streak",
-    icon: "Zap",
-    xp_reward: 50,
-    tier: "bronze",
-    unlocked: true,
-    unlocked_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-  {
-    id: "streak_7",
-    title: "Week Warrior",
-    description: "Maintained a 7-day habit streak",
-    icon: "Award",
-    xp_reward: 100,
-    tier: "silver",
-    unlocked: true,
-    unlocked_at: new Date(Date.now() - 8 * 86400000).toISOString(),
-  },
-  {
-    id: "streak_30",
-    title: "Habit Master",
-    description: "Complete a 30-day streak",
-    icon: "Crown",
-    xp_reward: 300,
-    tier: "gold",
-    unlocked: false,
-  },
-  {
-    id: "challenge_join",
-    title: "Challenger",
-    description: "Joined your first friend challenge",
-    icon: "Users",
-    xp_reward: 50,
-    tier: "bronze",
-    unlocked: true,
-    unlocked_at: new Date(Date.now() - 12 * 86400000).toISOString(),
-  },
-  {
-    id: "challenge_win",
-    title: "Champion",
-    description: "Won 1st place in a friend challenge",
-    icon: "Trophy",
-    xp_reward: 250,
-    tier: "gold",
-    unlocked: true,
-    unlocked_at: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-  {
-    id: "level_5",
-    title: "High Climber",
-    description: "Reach Level 5 in DO STREAKLY",
-    icon: "ShieldCheck",
-    xp_reward: 100,
-    tier: "silver",
-    unlocked: false,
-  },
-  {
-    id: "xp_1000",
-    title: "XP Legend",
-    description: "Accumulated 1,000 Total XP",
-    icon: "Target",
-    xp_reward: 150,
-    tier: "silver",
-    unlocked: true,
-    unlocked_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    user_points: 100,
+    is_owner: true,
+    days_logged: 4,
+    total_days: 14,
+    days_remaining: 10,
   },
 ];
 
 export class StreaklyService {
-  private static STORAGE_KEY_PREFIX = "dostreakly_";
+  private static STORAGE_PREFIX = "dostreakly_";
 
   private static getStored<T>(key: string, defaultValue: T): T {
     if (typeof window === "undefined") return defaultValue;
     try {
-      const item = localStorage.getItem(`${this.STORAGE_KEY_PREFIX}${key}`);
+      const item = localStorage.getItem(`${this.STORAGE_PREFIX}${key}`);
       return item ? JSON.parse(item) : defaultValue;
     } catch {
       return defaultValue;
@@ -338,13 +311,15 @@ export class StreaklyService {
   private static setStored<T>(key: string, value: T): void {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(`${this.STORAGE_KEY_PREFIX}${key}`, JSON.stringify(value));
+      localStorage.setItem(`${this.STORAGE_PREFIX}${key}`, JSON.stringify(value));
     } catch (e) {
       console.error("Storage error:", e);
     }
   }
 
-  // --- Profile ---
+  // ==========================================
+  // PROFILE & TUTORIAL
+  // ==========================================
   static async getProfile(): Promise<Profile> {
     const supabase = createClient();
     try {
@@ -357,10 +332,12 @@ export class StreaklyService {
           .single();
 
         if (data && !error) {
-          return data;
+          return {
+            ...data,
+            tutorial_done: data.tutorial_done ?? false,
+          };
         }
 
-        // If user is authenticated but profile row not yet created
         return {
           id: user.id,
           username: user.user_metadata?.username || user.email?.split("@")[0] || "streaker",
@@ -372,6 +349,7 @@ export class StreaklyService {
           best_streak: 0,
           habits_completed_count: 0,
           challenges_won_count: 0,
+          tutorial_done: false,
           created_at: user.created_at,
         };
       }
@@ -396,7 +374,7 @@ export class StreaklyService {
         if (data && !error) return data;
       }
     } catch (e) {
-      console.warn("Falling back to local profile update", e);
+      console.warn("Falling back to local profile update:", e);
     }
 
     const current = await this.getProfile();
@@ -405,7 +383,37 @@ export class StreaklyService {
     return updated;
   }
 
-  // --- Habits ---
+  static async setTutorialDone(done: boolean = true): Promise<void> {
+    await this.updateProfile({ tutorial_done: done });
+  }
+
+  // ==========================================
+  // ONBOARDING
+  // ==========================================
+  static async saveOnboarding(data: {
+    wake_time: string;
+    targets: string[];
+  }): Promise<void> {
+    const supabase = createClient();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("onboarding").upsert({
+          user_id: user.id,
+          wake_time: data.wake_time,
+          targets: data.targets,
+          completed: true,
+        });
+      }
+    } catch (e) {
+      console.warn("Local onboarding save fallback:", e);
+    }
+    this.setStored("onboarding", { ...data, completed: true });
+  }
+
+  // ==========================================
+  // SOLO HABITS
+  // ==========================================
   static async getHabits(): Promise<Habit[]> {
     const supabase = createClient();
     const today = formatDate(new Date());
@@ -421,29 +429,28 @@ export class StreaklyService {
           .order("created_at", { ascending: true });
 
         if (habits && !error && habits.length > 0) {
-          // Fetch completions for today
-          const { data: completions } = await supabase
-            .from("habit_completions")
+          const { data: logs } = await supabase
+            .from("habit_logs")
             .select("*")
             .eq("user_id", user.id)
-            .eq("completed_date", today);
+            .eq("date", today);
 
-          const completionsMap = new Map(
-            completions?.map((c) => [c.habit_id, c]) || []
-          );
+          const logsMap = new Map(logs?.map((l) => [l.habit_id, l]) || []);
 
           return habits.map((h) => {
-            const comp = completionsMap.get(h.id);
-            const isCompleted = h.habit_type === "boolean"
-              ? !!comp
-              : (comp?.progress_value || 0) >= h.target_value;
+            const log = logsMap.get(h.id);
+            const isCompleted = log ? log.completed : false;
+            const progress = log ? log.value : 0;
 
             return {
               ...h,
+              title: h.name,
+              goal: h.goal || h.target_value || 1,
+              target_value: h.goal || h.target_value || 1,
               is_completed_today: isCompleted,
-              today_progress: comp ? comp.progress_value : 0,
-              today_completion_id: comp?.id,
-              current_streak: h.current_streak || 1,
+              today_progress: progress,
+              today_note: log?.note || "",
+              current_streak: h.current_streak || 0,
             };
           });
         }
@@ -452,20 +459,47 @@ export class StreaklyService {
       console.warn("Falling back to local habits:", e);
     }
 
-    return this.getStored("habits", DEFAULT_HABITS);
+    const localHabits = this.getStored("habits", DEFAULT_HABITS);
+    // Fetch local logs for today
+    const logs = this.getStored<Record<string, { value: number; completed: boolean; note?: string }>>(
+      `logs_${today}`,
+      {}
+    );
+
+    return localHabits.map((h) => {
+      const log = logs[h.id];
+      const isCompleted = log ? log.completed : !!h.is_completed_today;
+      const progress = log ? log.value : (h.today_progress || 0);
+
+      return {
+        ...h,
+        title: h.name || h.title || "Habit",
+        name: h.name || h.title || "Habit",
+        goal: h.goal || h.target_value || 1,
+        target_value: h.goal || h.target_value || 1,
+        is_completed_today: isCompleted,
+        today_progress: progress,
+        today_note: log?.note || h.today_note || "",
+      };
+    });
   }
 
   static async createHabit(habitData: {
-    title: string;
+    name: string;
+    title?: string;
     description?: string;
     icon: string;
-    habit_type: "boolean" | "measurable";
-    target_value: number;
+    type: "yes_no" | "measurable";
+    goal: number;
     unit: string;
-    frequency: "daily" | "weekdays" | "weekends" | "custom";
-    xp_value: number;
+    time_of_day?: TimeOfDay;
+    use_timer?: boolean;
+    timer_duration_seconds?: number;
+    frequency?: "daily" | "weekdays" | "weekends" | "custom";
   }): Promise<Habit> {
     const supabase = createClient();
+    const habitName = habitData.name || habitData.title || "New Habit";
+    const timeOfDay = habitData.time_of_day || "anytime";
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -473,8 +507,15 @@ export class StreaklyService {
         const { data, error } = await supabase
           .from("habits")
           .insert({
-            ...habitData,
             user_id: user.id,
+            name: habitName,
+            icon: habitData.icon,
+            type: habitData.type,
+            unit: habitData.unit,
+            goal: habitData.goal,
+            time_of_day: timeOfDay,
+            use_timer: habitData.use_timer || false,
+            timer_duration_seconds: habitData.timer_duration_seconds || 900,
           })
           .select()
           .single();
@@ -482,6 +523,7 @@ export class StreaklyService {
         if (data && !error) {
           return {
             ...data,
+            title: data.name,
             is_completed_today: false,
             today_progress: 0,
             current_streak: 0,
@@ -489,14 +531,27 @@ export class StreaklyService {
         }
       }
     } catch (e) {
-      console.warn("Falling back to local habit creation", e);
+      console.warn("Falling back to local habit creation:", e);
     }
 
     const currentHabits = await this.getHabits();
     const newHabit: Habit = {
       id: `habit-${Date.now()}`,
       user_id: "demo-user",
-      ...habitData,
+      name: habitName,
+      title: habitName,
+      description: habitData.description || "",
+      icon: habitData.icon,
+      type: habitData.type,
+      habit_type: habitData.type === "yes_no" ? "boolean" : "measurable",
+      goal: habitData.goal,
+      target_value: habitData.goal,
+      unit: habitData.unit,
+      time_of_day: timeOfDay,
+      use_timer: habitData.use_timer || false,
+      timer_duration_seconds: habitData.timer_duration_seconds || 900,
+      frequency: habitData.frequency || "daily",
+      xp_value: 0,
       is_archived: false,
       is_paused: false,
       created_at: new Date().toISOString(),
@@ -505,133 +560,214 @@ export class StreaklyService {
       current_streak: 0,
     };
 
-    const updated = [...currentHabits, newHabit];
+    const updated = [newHabit, ...currentHabits];
     this.setStored("habits", updated);
     return newHabit;
   }
 
   static async completeHabit(
     habitId: string,
-    progressIncrement?: number
+    increment?: number,
+    note?: string
   ): Promise<{
     habit: Habit;
-    xpEarned: number;
     streakIncreased: boolean;
-    newTotalXp: number;
-    newLevel: number;
   }> {
     const habits = await this.getHabits();
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) throw new Error("Habit not found");
 
     const today = formatDate(new Date());
-    let xpEarned = 0;
     let isNowCompleted = false;
     let currentProgress = habit.today_progress || 0;
+    const goal = habit.goal || habit.target_value || 1;
 
-    if (habit.habit_type === "boolean") {
-      if (habit.is_completed_today) {
-        // Already completed today, prevent duplicate XP claim!
-        return {
-          habit,
-          xpEarned: 0,
-          streakIncreased: false,
-          newTotalXp: (await this.getProfile()).total_xp,
-          newLevel: (await this.getProfile()).level,
-        };
-      }
+    if (habit.type === "yes_no" || habit.habit_type === "boolean") {
       isNowCompleted = true;
       currentProgress = 1;
-      xpEarned = habit.xp_value;
     } else {
-      // Measurable habit
-      const addValue = progressIncrement !== undefined ? progressIncrement : habit.target_value;
-      currentProgress = Math.min(habit.target_value, currentProgress + addValue);
-      if (currentProgress >= habit.target_value && !habit.is_completed_today) {
+      const addValue = increment !== undefined ? increment : goal;
+      currentProgress = Math.min(goal, currentProgress + addValue);
+      if (currentProgress >= goal) {
         isNowCompleted = true;
-        xpEarned = habit.xp_value;
       }
     }
 
-    // Try Supabase insert completion & XP transaction
+    const streakIncreased = isNowCompleted && !habit.is_completed_today;
+    const newStreak = streakIncreased
+      ? (habit.current_streak || 0) + 1
+      : (habit.current_streak || 1);
+
+    // Supabase
     const supabase = createClient();
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && isNowCompleted && xpEarned > 0) {
-        await supabase.from("habit_completions").upsert({
-          habit_id: habitId,
-          user_id: user.id,
-          completed_date: today,
-          progress_value: currentProgress,
-          xp_earned: xpEarned,
-        }, { onConflict: "habit_id, completed_date" });
-
-        await supabase.from("xp_transactions").insert({
-          user_id: user.id,
-          amount: xpEarned,
-          source_type: "habit",
-          source_id: habitId,
-          description: `Completed "${habit.title}"`,
-        });
+      if (user) {
+        await supabase.from("habit_logs").upsert(
+          {
+            habit_id: habitId,
+            user_id: user.id,
+            date: today,
+            value: currentProgress,
+            completed: isNowCompleted,
+            note: note || habit.today_note,
+          },
+          { onConflict: "habit_id, date" }
+        );
       }
     } catch (e) {
       console.warn("Supabase record failed, using local storage state:", e);
     }
 
-    // Update Profile XP & Streak
-    const profile = await this.getProfile();
-    const newTotalXp = profile.total_xp + xpEarned;
-    const { level: newLevel } = calculateLevel(newTotalXp);
-    const streakIncreased = isNowCompleted && !habit.is_completed_today;
-    const newHabitStreak = streakIncreased ? (habit.current_streak || 0) + 1 : (habit.current_streak || 1);
-
-    const updatedProfile: Profile = {
-      ...profile,
-      total_xp: newTotalXp,
-      level: newLevel,
-      current_streak: streakIncreased ? profile.current_streak + 1 : profile.current_streak,
-      best_streak: Math.max(profile.best_streak, streakIncreased ? profile.current_streak + 1 : profile.current_streak),
-      habits_completed_count: isNowCompleted ? profile.habits_completed_count + 1 : profile.habits_completed_count,
+    // Update local logs
+    const logs = this.getStored<Record<string, { value: number; completed: boolean; note?: string }>>(
+      `logs_${today}`,
+      {}
+    );
+    logs[habitId] = {
+      value: currentProgress,
+      completed: isNowCompleted,
+      note: note || habit.today_note,
     };
-    await this.updateProfile(updatedProfile);
+    this.setStored(`logs_${today}`, logs);
 
     // Update local habit state
     const updatedHabits = habits.map((h) => {
       if (h.id === habitId) {
         return {
           ...h,
-          is_completed_today: isNowCompleted || h.is_completed_today,
+          is_completed_today: isNowCompleted,
           today_progress: currentProgress,
-          current_streak: newHabitStreak,
+          current_streak: newStreak,
+          today_note: note || h.today_note,
         };
       }
       return h;
     });
     this.setStored("habits", updatedHabits);
 
+    // Update Profile Streaks
+    if (streakIncreased) {
+      const profile = await this.getProfile();
+      await this.updateProfile({
+        current_streak: profile.current_streak + 1,
+        best_streak: Math.max(profile.best_streak, profile.current_streak + 1),
+        habits_completed_count: profile.habits_completed_count + 1,
+      });
+    }
+
     return {
       habit: updatedHabits.find((h) => h.id === habitId)!,
-      xpEarned,
       streakIncreased,
-      newTotalXp,
-      newLevel,
     };
   }
 
-  // --- Challenges (Main USP) ---
+  // UNDO HABIT (Step 4 of tutorial: "Undo. You can undo the action after mishandling.")
+  static async undoHabit(habitId: string): Promise<Habit> {
+    const habits = await this.getHabits();
+    const habit = habits.find((h) => h.id === habitId);
+    if (!habit) throw new Error("Habit not found");
+
+    const today = formatDate(new Date());
+    const wasCompleted = habit.is_completed_today;
+
+    // Delete or update log in Supabase
+    const supabase = createClient();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("habit_logs")
+          .delete()
+          .eq("habit_id", habitId)
+          .eq("date", today);
+      }
+    } catch (e) {
+      console.warn("Supabase delete failed:", e);
+    }
+
+    // Local storage logs
+    const logs = this.getStored<Record<string, { value: number; completed: boolean; note?: string }>>(
+      `logs_${today}`,
+      {}
+    );
+    delete logs[habitId];
+    this.setStored(`logs_${today}`, logs);
+
+    const newStreak = wasCompleted && (habit.current_streak || 0) > 0
+      ? (habit.current_streak || 1) - 1
+      : (habit.current_streak || 0);
+
+    const updatedHabits = habits.map((h) => {
+      if (h.id === habitId) {
+        return {
+          ...h,
+          is_completed_today: false,
+          today_progress: 0,
+          current_streak: newStreak,
+        };
+      }
+      return h;
+    });
+    this.setStored("habits", updatedHabits);
+
+    return updatedHabits.find((h) => h.id === habitId)!;
+  }
+
+  static async saveHabitNote(habitId: string, note: string): Promise<void> {
+    const today = formatDate(new Date());
+    const logs = this.getStored<Record<string, { value: number; completed: boolean; note?: string }>>(
+      `logs_${today}`,
+      {}
+    );
+    if (!logs[habitId]) {
+      logs[habitId] = { value: 0, completed: false, note };
+    } else {
+      logs[habitId].note = note;
+    }
+    this.setStored(`logs_${today}`, logs);
+
+    const habits = await this.getHabits();
+    const updated = habits.map((h) => (h.id === habitId ? { ...h, today_note: note } : h));
+    this.setStored("habits", updated);
+  }
+
+  static async deleteHabit(habitId: string): Promise<void> {
+    const supabase = createClient();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("habits").delete().eq("id", habitId);
+      }
+    } catch (e) {
+      console.warn("Supabase delete habit failed:", e);
+    }
+
+    const habits = await this.getHabits();
+    this.setStored("habits", habits.filter((h) => h.id !== habitId));
+  }
+
+  // ==========================================
+  // FRIEND CHALLENGES (JOURNEY TAB)
+  // XP & Points exist ONLY here!
+  // ==========================================
   static async getChallenges(): Promise<Challenge[]> {
     const supabase = createClient();
     try {
       const { data, error } = await supabase
         .from("challenges")
-        .select("*")
+        .select(`
+          *,
+          habits:challenge_habits(*),
+          members:challenge_members(*, profile:profiles(*))
+        `)
         .order("created_at", { ascending: false });
 
       if (data && !error && data.length > 0) {
         return data;
       }
     } catch (e) {
-      console.warn("Falling back to local challenges", e);
+      console.warn("Falling back to local challenges:", e);
     }
 
     return this.getStored("challenges", DEFAULT_CHALLENGES);
@@ -642,58 +778,112 @@ export class StreaklyService {
     return challenges.find((c) => c.id === id) || null;
   }
 
+  static async getChallengeByInviteCode(code: string): Promise<Challenge | null> {
+    const challenges = await this.getChallenges();
+    const normalized = code.trim().toUpperCase();
+    return (
+      challenges.find(
+        (c) => c.invite_code?.toUpperCase() === normalized || c.id === code
+      ) || null
+    );
+  }
+
   static async createChallenge(data: {
-    title: string;
-    description: string;
-    habit_title: string;
-    habit_type: "boolean" | "measurable";
-    target_value: number;
-    unit: string;
+    name: string;
     duration_days: number;
-    xp_reward: number;
-    rules?: string;
+    start_date: string;
+    description?: string;
+    habits: Array<{
+      name: string;
+      type: "yes_no" | "measurable";
+      unit?: string;
+      target?: number;
+      points: number;
+      log_before_midnight?: boolean;
+    }>;
   }): Promise<Challenge> {
     const profile = await this.getProfile();
-    const startDate = formatDate(new Date());
-    const endDate = formatDate(new Date(Date.now() + data.duration_days * 86400000));
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const challengeId = `chal-${Date.now()}`;
+
+    const challengeHabits: ChallengeHabit[] = data.habits.map((h, i) => ({
+      id: `ch-h-${Date.now()}-${i}`,
+      challenge_id: challengeId,
+      name: h.name,
+      type: h.type,
+      unit: h.unit || "reps",
+      target: h.target || 1,
+      points: Number(h.points) || 10,
+      log_before_midnight: h.log_before_midnight || false,
+    }));
+
+    const initialMember: ChallengeMember = {
+      id: `cm-${Date.now()}`,
+      challenge_id: challengeId,
+      user_id: profile.id,
+      joined_at: new Date().toISOString(),
+      total_points: 0,
+      days_logged: 0,
+      profile,
+    };
 
     const newChallenge: Challenge = {
-      id: `chal-${Date.now()}`,
-      creator_id: profile.id,
-      ...data,
-      start_date: startDate,
-      end_date: endDate,
+      id: challengeId,
+      owner_id: profile.id,
+      name: data.name,
+      title: data.name,
+      description: data.description || "",
+      duration_days: data.duration_days,
+      start_date: data.start_date,
+      invite_code: inviteCode,
       status: "active",
       created_at: new Date().toISOString(),
+      habits: challengeHabits,
+      members: [initialMember],
       participants_count: 1,
       user_joined: true,
       user_rank: 1,
-      user_xp: 0,
+      user_points: 0,
+      is_owner: true,
+      days_logged: 0,
+      total_days: data.duration_days,
+      days_remaining: data.duration_days,
     };
 
+    // Supabase
     const supabase = createClient();
     try {
       const { data: created, error } = await supabase
         .from("challenges")
         .insert({
-          creator_id: profile.id,
-          title: data.title,
-          description: data.description,
-          habit_title: data.habit_title,
-          habit_type: data.habit_type,
-          target_value: data.target_value,
-          unit: data.unit,
+          owner_id: profile.id,
+          name: data.name,
           duration_days: data.duration_days,
-          start_date: startDate,
-          end_date: endDate,
-          xp_reward: data.xp_reward,
-          rules: data.rules,
+          start_date: data.start_date,
+          invite_code: inviteCode,
+          description: data.description,
         })
         .select()
         .single();
 
       if (created && !error) {
-        return created;
+        // Insert habits & creator membership
+        await supabase.from("challenge_habits").insert(
+          challengeHabits.map((h) => ({
+            challenge_id: created.id,
+            name: h.name,
+            type: h.type,
+            unit: h.unit,
+            target: h.target,
+            points: h.points,
+            log_before_midnight: h.log_before_midnight,
+          }))
+        );
+
+        await supabase.from("challenge_members").insert({
+          challenge_id: created.id,
+          user_id: profile.id,
+        });
       }
     } catch (e) {
       console.warn("Local challenge create fallback:", e);
@@ -705,156 +895,285 @@ export class StreaklyService {
     return newChallenge;
   }
 
-  static async joinChallenge(challengeId: string): Promise<boolean> {
-    const challenges = await this.getChallenges();
-    const updated = challenges.map((c) => {
-      if (c.id === challengeId) {
-        return {
-          ...c,
-          user_joined: true,
-          participants_count: (c.participants_count || 0) + 1,
-          user_rank: (c.participants_count || 0) + 1,
-        };
-      }
-      return c;
-    });
-    this.setStored("challenges", updated);
-    return true;
+  static async joinChallenge(inviteCodeOrId: string): Promise<{ success: boolean; challenge: Challenge; alreadyJoined: boolean }> {
+    const profile = await this.getProfile();
+    const challenge = await this.getChallengeByInviteCode(inviteCodeOrId);
+    if (!challenge) {
+      throw new Error("Challenge not found with this code.");
+    }
+
+    // Check if already a member (PREVENT JOINING TWICE)
+    const isAlreadyMember = challenge.members?.some(
+      (m) => m.user_id === profile.id || m.profile?.id === profile.id
+    ) || challenge.user_joined;
+
+    if (isAlreadyMember) {
+      return { success: true, challenge, alreadyJoined: true };
+    }
+
+    const newMember: ChallengeMember = {
+      id: `cm-${Date.now()}`,
+      challenge_id: challenge.id,
+      user_id: profile.id,
+      joined_at: new Date().toISOString(),
+      total_points: 0,
+      days_logged: 0,
+      profile,
+    };
+
+    const updatedMembers = [...(challenge.members || []), newMember];
+    const updatedChallenge: Challenge = {
+      ...challenge,
+      members: updatedMembers,
+      participants_count: updatedMembers.length,
+      user_joined: true,
+      user_rank: updatedMembers.length,
+      user_points: 0,
+    };
+
+    // Supabase
+    const supabase = createClient();
+    try {
+      await supabase.from("challenge_members").insert({
+        challenge_id: challenge.id,
+        user_id: profile.id,
+      });
+    } catch (e) {
+      console.warn("Supabase join challenge failed:", e);
+    }
+
+    const all = await this.getChallenges();
+    const updatedAll = all.map((c) => (c.id === challenge.id ? updatedChallenge : c));
+    this.setStored("challenges", updatedAll);
+
+    return { success: true, challenge: updatedChallenge, alreadyJoined: false };
   }
 
-  static async getChallengeLeaderboard(challengeId: string): Promise<Array<{
-    rank: number;
-    profile: Profile;
-    xp: number;
-    progress: number;
-    isCurrentUser: boolean;
-  }>> {
-    const userProfile = await this.getProfile();
-    const friends = await this.getFriends();
+  // LOG CHALLENGE HABIT (awards points ONLY when target is met)
+  static async logChallengeHabit(
+    challengeId: string,
+    challengeHabitId: string,
+    value: number
+  ): Promise<{ pointsAwarded: number; challenge: Challenge }> {
+    const profile = await this.getProfile();
+    const challenges = await this.getChallenges();
+    const challenge = challenges.find((c) => c.id === challengeId);
+    if (!challenge) throw new Error("Challenge not found");
 
-    // Challenge participants mock list
+    const habit = challenge.habits?.find((h) => h.id === challengeHabitId);
+    if (!habit) throw new Error("Challenge habit not found");
+
+    const today = formatDate(new Date());
+    const isTargetMet = habit.type === "yes_no"
+      ? value >= 1
+      : value >= (habit.target || 1);
+
+    const pointsToAward = isTargetMet ? habit.points : 0;
+
+    // Supabase
+    const supabase = createClient();
+    try {
+      await supabase.from("challenge_logs").upsert(
+        {
+          challenge_id: challengeId,
+          user_id: profile.id,
+          challenge_habit_id: challengeHabitId,
+          date: today,
+          value,
+          points_awarded: pointsToAward,
+        },
+        { onConflict: "challenge_id, user_id, challenge_habit_id, date" }
+      );
+    } catch (e) {
+      console.warn("Supabase challenge log failed:", e);
+    }
+
+    // Update challenge member points
+    const updatedMembers = (challenge.members || []).map((m) => {
+      if (m.user_id === profile.id || m.profile?.id === profile.id) {
+        return {
+          ...m,
+          total_points: (m.total_points || 0) + pointsToAward,
+          days_logged: (m.days_logged || 0) + (isTargetMet ? 1 : 0),
+        };
+      }
+      return m;
+    });
+
+    const updatedChallenge: Challenge = {
+      ...challenge,
+      members: updatedMembers,
+      user_points: ((challenge.user_points || 0) + pointsToAward),
+    };
+
+    const updatedAll = challenges.map((c) =>
+      c.id === challengeId ? updatedChallenge : c
+    );
+    this.setStored("challenges", updatedAll);
+
+    return { pointsAwarded: pointsToAward, challenge: updatedChallenge };
+  }
+
+  // Get active Challenge Habits for user's Today screen
+  static async getTodayChallengeHabits(): Promise<Array<{
+    challenge: Challenge;
+    habit: ChallengeHabit;
+  }>> {
+    const profile = await this.getProfile();
+    const challenges = await this.getChallenges();
+    const activeUserChallenges = challenges.filter(
+      (c) => c.user_joined && c.status === "active"
+    );
+
+    const list: Array<{ challenge: Challenge; habit: ChallengeHabit }> = [];
+    for (const c of activeUserChallenges) {
+      if (c.habits) {
+        for (const h of c.habits) {
+          list.push({ challenge: c, habit: h });
+        }
+      }
+    }
+    return list;
+  }
+
+  // Creator can remove member
+  static async removeChallengeMember(challengeId: string, userId: string): Promise<Challenge> {
+    const challenges = await this.getChallenges();
+    const challenge = challenges.find((c) => c.id === challengeId);
+    if (!challenge) throw new Error("Challenge not found");
+
+    const updatedMembers = (challenge.members || []).filter(
+      (m) => m.user_id !== userId && m.profile?.id !== userId
+    );
+
+    const updatedChallenge = {
+      ...challenge,
+      members: updatedMembers,
+      participants_count: updatedMembers.length,
+    };
+
+    const updatedAll = challenges.map((c) => (c.id === challengeId ? updatedChallenge : c));
+    this.setStored("challenges", updatedAll);
+    return updatedChallenge;
+  }
+
+  // Creator can regenerate invite link
+  static async regenerateInviteCode(challengeId: string): Promise<string> {
+    const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const challenges = await this.getChallenges();
+    const updatedAll = challenges.map((c) =>
+      c.id === challengeId ? { ...c, invite_code: newCode } : c
+    );
+    this.setStored("challenges", updatedAll);
+    return newCode;
+  }
+
+  // Creator can edit challenge before it starts
+  static async updateChallenge(
+    challengeId: string,
+    updates: Partial<Challenge>
+  ): Promise<Challenge> {
+    const challenges = await this.getChallenges();
+    const challenge = challenges.find((c) => c.id === challengeId);
+    if (!challenge) throw new Error("Challenge not found");
+
+    const updatedChallenge = { ...challenge, ...updates };
+    const updatedAll = challenges.map((c) =>
+      c.id === challengeId ? updatedChallenge : c
+    );
+    this.setStored("challenges", updatedAll);
+    return updatedChallenge;
+  }
+
+  // Friends mock for rankings
+  static async getFriends(): Promise<Profile[]> {
     return [
       {
-        rank: 1,
-        profile: friends[0], // Rahul
-        xp: 680,
-        progress: 88,
-        isCurrentUser: false,
+        id: "friend-1",
+        username: "rahul_fit",
+        full_name: "Rahul Sharma",
+        avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        total_xp: 0,
+        level: 1,
+        current_streak: 15,
+        best_streak: 22,
+        habits_completed_count: 110,
+        challenges_won_count: 3,
+        created_at: new Date().toISOString(),
       },
       {
-        rank: 2,
-        profile: userProfile, // Current user
-        xp: 590,
-        progress: 82,
-        isCurrentUser: true,
-      },
-      {
-        rank: 3,
-        profile: friends[1], // Prakhar
-        xp: 510,
-        progress: 74,
-        isCurrentUser: false,
-      },
-      {
-        rank: 4,
-        profile: friends[2], // Aman
-        xp: 420,
-        progress: 65,
-        isCurrentUser: false,
+        id: "friend-2",
+        username: "prakhar_dev",
+        full_name: "Prakhar Gupta",
+        avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+        total_xp: 0,
+        level: 1,
+        current_streak: 12,
+        best_streak: 18,
+        habits_completed_count: 88,
+        challenges_won_count: 2,
+        created_at: new Date().toISOString(),
       },
     ];
   }
 
-  // --- Friends ---
-  static async getFriends(): Promise<Profile[]> {
-    return this.getStored("friends", DEFAULT_FRIENDS);
-  }
-
-  static async addFriend(usernameOrEmail: string): Promise<Profile> {
+  static async addFriend(username: string): Promise<Profile> {
     const newFriend: Profile = {
       id: `friend-${Date.now()}`,
-      username: usernameOrEmail.toLowerCase().replace(/[^a-z0-9]/g, "_"),
-      full_name: usernameOrEmail.split("@")[0],
-      avatar_url: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80`,
-      total_xp: 350,
-      level: 2,
-      current_streak: 3,
-      best_streak: 5,
-      habits_completed_count: 15,
+      username: username.toLowerCase().replace(/\s+/g, "_"),
+      full_name: username,
+      avatar_url: "",
+      total_xp: 0,
+      level: 1,
+      current_streak: 1,
+      best_streak: 1,
+      habits_completed_count: 5,
       challenges_won_count: 0,
       created_at: new Date().toISOString(),
     };
-
-    const current = await this.getFriends();
-    const updated = [newFriend, ...current];
-    this.setStored("friends", updated);
     return newFriend;
   }
 
-  // --- Leaderboards (Global & Friends) ---
-  static async getGlobalLeaderboard(): Promise<Array<{
-    rank: number;
-    profile: Profile;
-    isCurrentUser: boolean;
-  }>> {
-    const user = await this.getProfile();
+  static async getGlobalLeaderboard(): Promise<Array<{ rank: number; profile: Profile; isCurrentUser: boolean }>> {
+    const profile = await this.getProfile();
     const friends = await this.getFriends();
+    return [
+      { rank: 1, profile: friends[0], isCurrentUser: false },
+      { rank: 2, profile, isCurrentUser: true },
+      { rank: 3, profile: friends[1], isCurrentUser: false },
+    ];
+  }
 
-    const allUsers = [
-      user,
-      ...friends,
+  static async getAchievements() {
+    return [
       {
-        id: "global-1",
-        username: "viktor_grind",
-        full_name: "Viktor Petrov",
-        avatar_url: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
-        total_xp: 2840,
-        level: 8,
-        current_streak: 42,
-        best_streak: 60,
-        habits_completed_count: 240,
-        challenges_won_count: 7,
-        created_at: new Date().toISOString(),
+        id: "first_habit",
+        title: "First Step",
+        description: "Created your very first habit",
+        icon: "Sparkles",
+        xp_reward: 25,
+        tier: "bronze" as const,
+        unlocked: true,
       },
       {
-        id: "global-2",
-        username: "elena_core",
-        full_name: "Elena Rostova",
-        avatar_url: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
-        total_xp: 2410,
-        level: 7,
-        current_streak: 34,
-        best_streak: 45,
-        habits_completed_count: 195,
-        challenges_won_count: 5,
-        created_at: new Date().toISOString(),
+        id: "first_completion",
+        title: "Streak Ignition",
+        description: "Completed your first daily habit",
+        icon: "Flame",
+        xp_reward: 30,
+        tier: "bronze" as const,
+        unlocked: true,
       },
       {
-        id: "global-3",
-        username: "marcus_stride",
-        full_name: "Marcus Thorne",
-        avatar_url: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
-        total_xp: 1950,
-        level: 6,
-        current_streak: 28,
-        best_streak: 30,
-        habits_completed_count: 160,
-        challenges_won_count: 4,
-        created_at: new Date().toISOString(),
+        id: "streak_7",
+        title: "Week Warrior",
+        description: "Maintained a 7-day habit streak",
+        icon: "Award",
+        xp_reward: 100,
+        tier: "silver" as const,
+        unlocked: true,
       },
     ];
-
-    allUsers.sort((a, b) => b.total_xp - a.total_xp);
-
-    return allUsers.map((u, index) => ({
-      rank: index + 1,
-      profile: u,
-      isCurrentUser: u.id === user.id,
-    }));
-  }
-
-  // --- Achievements ---
-  static async getAchievements(): Promise<Achievement[]> {
-    return this.getStored("achievements", DEFAULT_ACHIEVEMENTS);
   }
 }
+

@@ -1,61 +1,43 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { StreaklyService } from "@/lib/services/streaklyService";
-import { Profile, Achievement } from "@/types";
-import { calculateLevel } from "@/lib/utils";
+import { Profile } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import {
   User,
   Flame,
-  Sparkles,
   Trophy,
-  Swords,
   CheckCircle2,
-  Award,
-  Zap,
-  Crown,
-  ShieldCheck,
-  Target,
+  CalendarCheck,
+  Settings,
+  HelpCircle,
   LogOut,
   Edit2,
   Check,
+  RotateCcw,
+  Sparkles,
 } from "lucide-react";
 
-const ICON_MAP: Record<string, React.ElementType> = {
-  Sparkles,
-  Flame,
-  Zap,
-  Award,
-  Crown,
-  Users: User,
-  Trophy,
-  ShieldCheck,
-  Target,
-};
-
 export default function ProfilePage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [tutorialReplayed, setTutorialReplayed] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const [prof, ach] = await Promise.all([
-        StreaklyService.getProfile(),
-        StreaklyService.getAchievements(),
-      ]);
+      const prof = await StreaklyService.getProfile();
       setProfile(prof);
       setFullName(prof.full_name);
       setUsername(prof.username);
-      setAchievements(ach);
     }
     load();
   }, []);
@@ -73,6 +55,15 @@ export default function ProfilePage() {
     setTimeout(() => setSavedSuccess(false), 2500);
   };
 
+  const handleReplayTutorial = async () => {
+    await StreaklyService.setTutorialDone(false);
+    setTutorialReplayed(true);
+    setTimeout(() => {
+      // Navigate to Today screen where tutorial will trigger immediately
+      router.push("/dashboard");
+    }, 400);
+  };
+
   const handleLogout = async () => {
     document.cookie = "streakly_demo=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     const supabase = createClient();
@@ -81,8 +72,6 @@ export default function ProfilePage() {
   };
 
   if (!profile) return null;
-
-  const levelInfo = calculateLevel(profile.total_xp);
 
   return (
     <AppShell>
@@ -111,8 +100,9 @@ export default function ProfilePage() {
                 </h1>
                 <p className="text-sm text-gray-400">@{profile.username}</p>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="rounded-full bg-[#B6F34A]/15 border border-[#B6F34A]/30 px-2.5 py-0.5 text-xs font-bold text-[#B6F34A]">
-                    Level {levelInfo.level} Streaker
+                  <span className="rounded-full bg-orange-500/10 border border-orange-500/30 px-2.5 py-0.5 text-xs font-bold text-orange-400 flex items-center gap-1">
+                    <Flame className="h-3.5 w-3.5 fill-orange-400" />
+                    {profile.current_streak}d Active Streak
                   </span>
                   <span className="text-xs text-gray-400">
                     Joined {new Date(profile.created_at).toLocaleDateString()}
@@ -131,15 +121,6 @@ export default function ProfilePage() {
                 <Edit2 className="h-4 w-4" />
                 <span>{isEditing ? "Cancel" : "Edit Profile"}</span>
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="gap-1.5 text-red-400 border-red-500/20 hover:bg-red-500/10"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Log out</span>
-              </Button>
             </div>
           </div>
 
@@ -155,7 +136,7 @@ export default function ProfilePage() {
                 <label className="text-xs text-gray-300 block mb-1">Username</label>
                 <Input value={username} onChange={(e) => setUsername(e.target.value)} required />
               </div>
-              <Button type="submit" size="sm" className="mt-2">
+              <Button type="submit" size="sm" className="mt-2 bg-[#B6F34A] text-[#0B0F0D] hover:bg-[#a3e635] font-bold">
                 Save Changes
               </Button>
             </form>
@@ -166,31 +147,10 @@ export default function ProfilePage() {
               <Check className="h-3.5 w-3.5" /> Profile successfully updated!
             </p>
           )}
-
-          {/* Level Progress Bar */}
-          <div className="mt-6 pt-6 border-t border-[#202E24]">
-            <div className="flex items-center justify-between text-xs font-semibold mb-2">
-              <span className="text-white flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5 text-[#B6F34A]" />
-                Level {levelInfo.level} Progression
-              </span>
-              <span className="text-[#B6F34A]">
-                {levelInfo.currentLevelXp} / {levelInfo.nextLevelXp} XP to Level {levelInfo.level + 1}
-              </span>
-            </div>
-            <Progress value={levelInfo.currentLevelXp} max={levelInfo.nextLevelXp} className="h-2.5" />
-          </div>
         </div>
 
-        {/* 4 Stats Grid */}
+        {/* 4 Stats Grid: Solo streaks, completion rate, history (No XP in solo mode) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4">
-          <div className="rounded-2xl border border-[#202E24] bg-[#121814] p-4 text-center">
-            <span className="text-xs text-gray-400 block mb-1">Total XP</span>
-            <span className="font-display text-2xl font-black text-[#B6F34A]">
-              {profile.total_xp}
-            </span>
-          </div>
-
           <div className="rounded-2xl border border-[#202E24] bg-[#121814] p-4 text-center">
             <span className="text-xs text-gray-400 block mb-1">Current Streak</span>
             <span className="font-display text-2xl font-black text-orange-400 flex items-center justify-center gap-1">
@@ -207,6 +167,14 @@ export default function ProfilePage() {
           </div>
 
           <div className="rounded-2xl border border-[#202E24] bg-[#121814] p-4 text-center">
+            <span className="text-xs text-gray-400 block mb-1">Total Habits Done</span>
+            <span className="font-display text-2xl font-black text-[#B6F34A] flex items-center justify-center gap-1">
+              <CheckCircle2 className="h-5 w-5" />
+              {profile.habits_completed_count || 84}
+            </span>
+          </div>
+
+          <div className="rounded-2xl border border-[#202E24] bg-[#121814] p-4 text-center">
             <span className="text-xs text-gray-400 block mb-1">Challenges Won</span>
             <span className="font-display text-2xl font-black text-amber-400 flex items-center justify-center gap-1">
               <Trophy className="h-5 w-5" />
@@ -215,63 +183,58 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Achievements Section */}
+        {/* ME > Settings Section (includes "Replay tutorial" requirement) */}
         <div className="rounded-3xl border border-[#202E24] bg-[#121814] p-6 md:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="font-display text-xl font-bold text-white flex items-center gap-2">
-                <Award className="h-5 w-5 text-[#B6F34A]" />
-                <span>Achievements & Badges</span>
-              </h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Unlock badges and bonus XP by hitting streak milestones and winning friend challenges.
-              </p>
-            </div>
-            <span className="text-xs font-bold text-[#B6F34A] rounded-full bg-[#1F2E25] px-3 py-1 border border-[#2C3F32]">
-              {achievements.filter((a) => a.unlocked).length} / {achievements.length} Unlocked
-            </span>
+          <div className="flex items-center gap-2 mb-6">
+            <Settings className="h-5 w-5 text-[#B6F34A]" />
+            <h2 className="font-display text-xl font-bold text-white">
+              Settings & Preferences
+            </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {achievements.map((ach) => {
-              const IconComp = ICON_MAP[ach.icon] || Award;
-              const isUnlocked = ach.unlocked;
+          <div className="divide-y divide-[#202E24]">
+            {/* Replay Tutorial (Step 5 Requirement) */}
+            <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <HelpCircle className="h-4 w-4 text-[#B6F34A]" />
+                  <span>Interactive App Tutorial</span>
+                </h4>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Walk through the coach-mark tutorial of the Today habit card, checkbox, undo action, and journey tab.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReplayTutorial}
+                className="gap-2 border-[#2C3F32] bg-[#17211B] text-white hover:bg-[#202E24] hover:text-[#B6F34A] shrink-0"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span>{tutorialReplayed ? "Launching..." : "Replay Tutorial"}</span>
+              </Button>
+            </div>
 
-              return (
-                <div
-                  key={ach.id}
-                  className={`rounded-2xl border p-4 flex items-start gap-3.5 transition-all ${
-                    isUnlocked
-                      ? "border-[#B6F34A]/30 bg-[#17211B]"
-                      : "border-[#202E24] bg-[#0B0F0D]/60 opacity-50"
-                  }`}
-                >
-                  <div
-                    className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
-                      isUnlocked
-                        ? "bg-[#B6F34A] text-[#0B0F0D] shadow-glow-sm"
-                        : "bg-[#17211B] text-gray-500 border border-[#202E24]"
-                    }`}
-                  >
-                    <IconComp className="h-5 w-5" />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <h4 className="font-display text-sm font-bold text-white truncate">
-                        {ach.title}
-                      </h4>
-                      <span className="text-[10px] font-bold text-[#B6F34A]">
-                        +{ach.xp_reward} XP
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">
-                      {ach.description}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+            {/* Logout */}
+            <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-bold text-red-400 flex items-center gap-2">
+                  <LogOut className="h-4 w-4" />
+                  <span>Account Session</span>
+                </h4>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Sign out of DO STREAKLY on this device.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="border-red-500/30 text-red-400 hover:bg-red-500/10 shrink-0"
+              >
+                Sign out
+              </Button>
+            </div>
           </div>
         </div>
       </div>

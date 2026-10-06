@@ -5,11 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  CheckCircle2,
+  CalendarCheck2,
   Swords,
-  Trophy,
-  Users,
   User,
   Plus,
   Flame,
@@ -27,35 +24,23 @@ interface SidebarProps {
 
 const NAV_ITEMS = [
   {
-    name: "Dashboard",
+    name: "Today",
     href: "/dashboard",
-    icon: LayoutDashboard,
+    icon: CalendarCheck2,
+    id: "sidebar-today-tab",
   },
   {
-    name: "Habits",
-    href: "/habits",
-    icon: CheckCircle2,
-  },
-  {
-    name: "Challenges",
+    name: "Journey",
     href: "/challenges",
     icon: Swords,
-    badge: "USP",
+    badge: "Friend Challenges",
+    id: "nav-journey-tab-desktop",
   },
   {
-    name: "Leaderboard",
-    href: "/leaderboard",
-    icon: Trophy,
-  },
-  {
-    name: "Friends",
-    href: "/friends",
-    icon: Users,
-  },
-  {
-    name: "Profile",
+    name: "Me",
     href: "/profile",
     icon: User,
+    id: "sidebar-me-tab",
   },
 ];
 
@@ -97,11 +82,12 @@ export function Sidebar({ profile, onOpenNewHabit }: SidebarProps) {
         {onOpenNewHabit && (
           <div className="mb-6 px-1">
             <Button
+              id="add-habit-btn-desktop"
               onClick={onOpenNewHabit}
-              className="w-full justify-center gap-2 shadow-glow-sm"
+              className="w-full justify-center gap-2 shadow-glow-sm font-bold bg-[#B6F34A] text-[#0B0F0D] hover:bg-[#a3e635]"
               size="md"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 stroke-[3]" />
               <span>Create Habit</span>
             </Button>
           </div>
@@ -110,12 +96,15 @@ export function Sidebar({ profile, onOpenNewHabit }: SidebarProps) {
         {/* Main Navigation Links */}
         <nav className="space-y-1.5">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            const isActive =
+              (item.href === "/dashboard" && (pathname === "/dashboard" || pathname === "/today")) ||
+              (item.href !== "/dashboard" && pathname.startsWith(item.href));
             const Icon = item.icon;
 
             return (
               <Link
                 key={item.href}
+                id={item.id}
                 href={item.href}
                 className={cn(
                   "flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all duration-200 group",
@@ -134,7 +123,7 @@ export function Sidebar({ profile, onOpenNewHabit }: SidebarProps) {
                   <span>{item.name}</span>
                 </div>
                 {item.badge && (
-                  <span className="rounded-full bg-[#B6F34A]/10 border border-[#B6F34A]/20 px-1.5 py-0.5 text-[10px] font-bold text-[#B6F34A]">
+                  <span className="rounded-full bg-[#B6F34A]/10 border border-[#B6F34A]/20 px-1.5 py-0.5 text-[9px] font-bold text-[#B6F34A]">
                     {item.badge}
                   </span>
                 )}
@@ -167,11 +156,9 @@ export function Sidebar({ profile, onOpenNewHabit }: SidebarProps) {
                   {profile.full_name}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                  <span className="text-[#B6F34A] font-semibold">{profile.total_xp} XP</span>
-                  <span>•</span>
                   <span className="flex items-center text-orange-400 font-medium">
                     <Flame className="h-3 w-3 inline mr-0.5 fill-orange-400" />
-                    {profile.current_streak}d
+                    {profile.current_streak}d streak
                   </span>
                 </div>
               </div>

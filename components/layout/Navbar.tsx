@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Flame, Bell, Sparkles, Plus, Check } from "lucide-react";
+import { Flame, Bell, Plus, Check } from "lucide-react";
 import { Profile } from "@/types";
 import { Button } from "@/components/ui/button";
 
@@ -20,7 +20,7 @@ export function Navbar({ profile, onOpenNewHabit }: NavbarProps) {
       Notification.requestPermission().then((permission) => {
         if (permission === "granted") {
           new Notification("DO STREAKLY 🔥", {
-            body: "Great job! Keep your habit streak blazing today.",
+            body: "Keep the momentum going! Great work staying consistent.",
             icon: "/logo.jpg",
           });
           setNotificationSent(true);
@@ -53,28 +53,16 @@ export function Navbar({ profile, onOpenNewHabit }: NavbarProps) {
         </Link>
       </div>
 
-      {/* Right controls: Streak, XP, Level, Test Notification, Quick Add */}
+      {/* Right controls: Streak, Test Notification, Quick Add Habit, User Avatar */}
       <div className="flex items-center gap-2.5 md:gap-3.5">
         {profile && (
-          <>
-            {/* Streak Highlight */}
-            <div className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 px-3 py-1 text-xs md:text-sm font-bold text-orange-400">
-              <Flame className="h-4 w-4 fill-orange-400 text-orange-400 animate-pulse" />
-              <span>{profile.current_streak}d</span>
-            </div>
-
-            {/* XP Pill */}
-            <div className="flex items-center gap-1.5 rounded-full bg-[#17211B] border border-[#2C3F32] px-3 py-1 text-xs md:text-sm font-semibold text-gray-200">
-              <Sparkles className="h-3.5 w-3.5 text-[#B6F34A]" />
-              <span className="text-[#B6F34A] font-bold">{profile.total_xp}</span>
-              <span className="text-gray-400 hidden sm:inline">XP</span>
-            </div>
-
-            {/* Level Pill */}
-            <div className="hidden sm:flex items-center gap-1 rounded-full bg-[#B6F34A]/10 border border-[#B6F34A]/30 px-2.5 py-1 text-xs font-bold text-[#B6F34A]">
-              Lvl {profile.level}
-            </div>
-          </>
+          <div
+            title="Current Habit Streak"
+            className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 px-3 py-1 text-xs md:text-sm font-bold text-orange-400"
+          >
+            <Flame className="h-4 w-4 fill-orange-400 text-orange-400 animate-pulse" />
+            <span>{profile.current_streak}d streak</span>
+          </div>
         )}
 
         {/* Notifications / Reminder button */}
@@ -91,19 +79,20 @@ export function Navbar({ profile, onOpenNewHabit }: NavbarProps) {
           <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[#B6F34A]" />
         </button>
 
-        {/* Quick Add Habit Button (Desktop & Mobile) */}
+        {/* Quick Add Habit Button (Visible on both mobile & desktop) */}
         {onOpenNewHabit && (
-          <Button
-            size="sm"
+          <button
+            id="add-habit-btn"
             onClick={onOpenNewHabit}
-            className="hidden sm:inline-flex"
+            title="Add more habits any time"
+            className="flex items-center gap-1.5 bg-[#B6F34A] text-[#0B0F0D] hover:bg-[#a3e635] px-3 py-1.5 rounded-xl font-bold text-xs md:text-sm transition-all shadow-glow-sm active:scale-95"
           >
-            <Plus className="h-4 w-4" />
-            <span>New Habit</span>
-          </Button>
+            <Plus className="h-4 w-4 stroke-[3]" />
+            <span className="hidden sm:inline">Add Habit</span>
+          </button>
         )}
 
-        {/* User Avatar */}
+        {/* User Avatar -> ME Profile */}
         {profile && (
           <Link href="/profile" className="relative group">
             <div className="h-9 w-9 overflow-hidden rounded-full border border-[#2C3F32] bg-[#17211B] transition-transform group-hover:scale-105 group-hover:border-[#B6F34A]">

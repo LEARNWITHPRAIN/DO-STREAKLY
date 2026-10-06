@@ -57,7 +57,7 @@ export default function HabitsPage() {
               Habits & Streaks
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              Build daily discipline, track measurable goals, and earn XP.
+              Build daily discipline, track measurable goals, and keep your streaks blazing.
             </p>
           </div>
 
@@ -122,6 +122,10 @@ export default function HabitsPage() {
                 key={habit.id}
                 habit={habit}
                 onComplete={handleComplete}
+                onUndo={async (id) => {
+                  const updated = await StreaklyService.undoHabit(id);
+                  setHabits((prev) => prev.map((h) => (h.id === id ? updated : h)));
+                }}
               />
             ))}
           </div>

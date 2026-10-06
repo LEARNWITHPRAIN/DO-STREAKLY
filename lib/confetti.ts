@@ -38,3 +38,6 @@ export function fireCelebrationConfetti() {
     startVelocity: 45,
   });
 }
+
+// Convenient alias for triggering confetti
+export const triggerConfetti = fireCelebrationConfetti;
