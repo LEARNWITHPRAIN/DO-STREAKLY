@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DO STREAKLY — Animated App Icon</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0b0f0d;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .label {
+      color: rgba(255,255,255,0.3);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 600;
+      text-align: center;
+    }
+    .icon-wrap {
+      position: relative;
+      overflow: hidden;
+      background: #B6F34A;
+      flex-shrink: 0;
+      animation: bgPulse 2.4s cubic-bezier(0.4,0,0.2,1) infinite;
+    }
+    .icon-wrap.xl  { width:240px; height:240px; border-radius:54px; }
+    .icon-wrap.md  { width:128px; height:128px; border-radius:28px; }
+    .icon-wrap.sm  { width:72px;  height:72px;  border-radius:16px; }
+    .icon-wrap.xs  { width:48px;  height:48px;  border-radius:11px; }
+    .icon-wrap svg { width:100%; height:100%; display:block; }
+    @keyframes bgPulse {
+      0%,38%,68%,100% { box-shadow:0 0 0 0 rgba(182,243,74,0); }
+      52% { box-shadow:0 0 0 6px rgba(182,243,74,0.45),0 0 50px 20px rgba(182,243,74,0.22); }
+    }
+    .bg-rect { animation:bgFill 2.4s ease-in-out infinite; }
+    @keyframes bgFill {
+      0%,38%,68%,100% { fill:#B6F34A; }
+      52%              { fill:#c8ff55; }
+    }
+    .left-fig {
+      animation:leftMove 2.4s cubic-bezier(0.4,0,0.2,1) infinite;
+      transform-box:fill-box;
+      transform-origin:center bottom;
+    }
+    @keyframes leftMove {
+      0%,18%   { transform:translateX(0px)  translateY(0px)  scale(1); }
+      46%      { transform:translateX(18px) translateY(-3px) scale(1.05); }
+      52%      { transform:translateX(18px) translateY(-5px) scale(1.08); }
+      58%      { transform:translateX(18px) translateY(-3px) scale(1.05); }
+      68%      { transform:translateX(7px)  translateY(3px)  scale(0.97); }
+      80%      { transform:translateX(2px)  translateY(0px)  scale(1); }
+      90%,100% { transform:translateX(0px)  translateY(0px)  scale(1); }
+    }
+    .right-fig {
+      animation:rightMove 2.4s cubic-bezier(0.4,0,0.2,1) infinite;
+      transform-box:fill-box;
+      transform-origin:center bottom;
+    }
+    @keyframes rightMove {
+      0%,18%   { transform:translateX(0px)   translateY(0px)  scale(1); }
+      46%      { transform:translateX(-18px) translateY(-3px) scale(1.05); }
+      52%      { transform:translateX(-18px) translateY(-5px) scale(1.08); }
+      58%      { transform:translateX(-18px) translateY(-3px) scale(1.05); }
+      68%      { transform:translateX(-7px)  translateY(3px)  scale(0.97); }
+      80%      { transform:translateX(-2px)  translateY(0px)  scale(1); }
+      90%,100% { transform:translateX(0px)   translateY(0px)  scale(1); }
+    }
+    .sparks {
+      animation:sparkPop 2.4s ease-in-out infinite;
+      transform-box:fill-box;
+      transform-origin:center;
+    }
+    @keyframes sparkPop {
+      0%,44%  { opacity:0; transform:scale(0.4); }
+      50%     { opacity:1; transform:scale(1); }
+      56%     { opacity:0.6; transform:scale(1.15); }
+      62%,100%{ opacity:0; transform:scale(1.4); }
+    }
+    .flash { animation:flashPop 2.4s ease-in-out infinite; }
+    @keyframes flashPop {
+      0%,48%  { opacity:0; }
+      52%     { opacity:0.4; }
+      58%,100%{ opacity:0; }
+    }
+    .motion-trail-left {
+      animation:trailL 2.4s ease-in-out infinite;
+      transform-box:fill-box;
+      transform-origin:right center;
+    }
+    .motion-trail-right {
+      animation:trailR 2.4s ease-in-out infinite;
+      transform-box:fill-box;
+      transform-origin:left center;
+    }
+    @keyframes trailL {
+      0%,20%  { opacity:0; transform:scaleX(0); }
+      35%     { opacity:0.45; transform:scaleX(1); }
+      50%,100%{ opacity:0; transform:scaleX(1.2); }
+    }
+    @keyframes trailR {
+      0%,20%  { opacity:0; transform:scaleX(0); }
+      35%     { opacity:0.45; transform:scaleX(1); }
+      50%,100%{ opacity:0; transform:scaleX(1.2); }
+    }
+    .preview-row { display:flex; align-items:flex-end; gap:28px; }
+    .preview-item { display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .tag { color:rgba(182,243,74,0.5); font-size:10px; letter-spacing:0.14em; font-weight:700; text-transform:uppercase; }
+  </style>
+</head>
+<body>
+  <p class="label">DO STREAKLY &nbsp;&middot;&nbsp; Animated App Icon</p>
+
+  <!-- HERO -->
+  <div class="icon-wrap xl">
+    <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+      <rect class="bg-rect" width="240" height="240" fill="#B6F34A"/>
+      <circle class="flash" cx="120" cy="52" r="22" fill="white" opacity="0"/>
+
+      <!-- LEFT FIGURE -->
+      <g class="left-fig" fill="#0a0a0a">
+        <g class="motion-trail-left" opacity="0" stroke="#0a0a0a" stroke-linecap="round" stroke-width="3.5" fill="none">
+          <line x1="20" y1="68" x2="50" y2="72"/>
+          <line x1="16" y1="82" x2="44" y2="84"/>
+          <line x1="18" y1="96" x2="46" y2="95"/>
+        </g>
+        <circle cx="82" cy="68" r="21"/>
+        <path d="M62 93C44 106 46 148 48 166C50 183 63 192 82 192C101 192 114 183 116 166C118 148 120 106 102 93C95 88 89 86 82 86C75 86 68 88 62 93Z"/>
+        <path d="M100 98C108 84 114 68 118 50C120 40 116 30 108 31C100 32 98 42 96 56C94 70 93 84 96 98Z"/>
+        <path d="M66 98C56 84 42 68 30 54C22 44 26 32 36 34C46 36 50 50 58 64C64 76 66 88 68 98Z"/>
+      </g>
+
+      <!-- RIGHT FIGURE -->
+      <g class="right-fig" fill="#0a0a0a">
+        <g class="motion-trail-right" opacity="0" stroke="#0a0a0a" stroke-linecap="round" stroke-width="3.5" fill="none">
+          <line x1="220" y1="68" x2="190" y2="72"/>
+          <line x1="224" y1="82" x2="196" y2="84"/>
+          <line x1="222" y1="96" x2="194" y2="95"/>
+        </g>
+        <circle cx="158" cy="68" r="21"/>
+        <path d="M178 93C196 106 194 148 192 166C190 183 177 192 158 192C139 192 126 183 124 166C122 148 120 106 138 93C145 88 151 86 158 86C165 86 172 88 178 93Z"/>
+        <path d="M140 98C132 84 126 68 122 50C120 40 124 30 132 31C140 32 142 42 144 56C146 70 147 84 144 98Z"/>
+        <path d="M174 98C184 84 198 68 210 54C218 44 214 32 204 34C194 36 190 50 182 64C176 76 174 88 172 98Z"/>
+      </g>
+
+      <!-- SPARK LINES -->
+      <g class="sparks" stroke="#0a0a0a" stroke-linecap="round" fill="none">
+        <line x1="120" y1="30" x2="120" y2="14" stroke-width="4.5"/>
+        <line x1="103" y1="36" x2="93"  y2="22" stroke-width="4"/>
+        <line x1="137" y1="36" x2="147" y2="22" stroke-width="4"/>
+        <line x1="88"  y1="46" x2="76"  y2="38" stroke-width="3"/>
+        <line x1="152" y1="46" x2="164" y2="38" stroke-width="3"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- SMALLER PREVIEWS -->
+  <div class="preview-row">
+    <div class="preview-item">
+      <div class="icon-wrap md">
+        <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect class="bg-rect" width="240" height="240" fill="#B6F34A"/>
+          <g class="left-fig" fill="#0a0a0a">
+            <circle cx="82" cy="68" r="21"/>
+            <path d="M62 93C44 106 46 148 48 166C50 183 63 192 82 192C101 192 114 183 116 166C118 148 120 106 102 93C95 88 89 86 82 86C75 86 68 88 62 93Z"/>
+            <path d="M100 98C108 84 114 68 118 50C120 40 116 30 108 31C100 32 98 42 96 56C94 70 93 84 96 98Z"/>
+            <path d="M66 98C56 84 42 68 30 54C22 44 26 32 36 34C46 36 50 50 58 64C64 76 66 88 68 98Z"/>
+          </g>
+          <g class="right-fig" fill="#0a0a0a">
+            <circle cx="158" cy="68" r="21"/>
+            <path d="M178 93C196 106 194 148 192 166C190 183 177 192 158 192C139 192 126 183 124 166C122 148 120 106 138 93C145 88 151 86 158 86C165 86 172 88 178 93Z"/>
+            <path d="M140 98C132 84 126 68 122 50C120 40 124 30 132 31C140 32 142 42 144 56C146 70 147 84 144 98Z"/>
+            <path d="M174 98C184 84 198 68 210 54C218 44 214 32 204 34C194 36 190 50 182 64C176 76 174 88 172 98Z"/>
+          </g>
+          <g class="sparks" stroke="#0a0a0a" stroke-linecap="round" fill="none">
+            <line x1="120" y1="30" x2="120" y2="14" stroke-width="4.5"/>
+            <line x1="103" y1="36" x2="93"  y2="22" stroke-width="4"/>
+            <line x1="137" y1="36" x2="147" y2="22" stroke-width="4"/>
+          </g>
+        </svg>
+      </div>
+      <span class="tag">128 px</span>
+    </div>
+    <div class="preview-item">
+      <div class="icon-wrap sm">
+        <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect class="bg-rect" width="240" height="240" fill="#B6F34A"/>
+          <g class="left-fig" fill="#0a0a0a">
+            <circle cx="82" cy="68" r="21"/>
+            <path d="M62 93C44 106 46 148 48 166C50 183 63 192 82 192C101 192 114 183 116 166C118 148 120 106 102 93C95 88 89 86 82 86C75 86 68 88 62 93Z"/>
+            <path d="M100 98C108 84 114 68 118 50C120 40 116 30 108 31C100 32 98 42 96 56C94 70 93 84 96 98Z"/>
+            <path d="M66 98C56 84 42 68 30 54C22 44 26 32 36 34C46 36 50 50 58 64C64 76 66 88 68 98Z"/>
+          </g>
+          <g class="right-fig" fill="#0a0a0a">
+            <circle cx="158" cy="68" r="21"/>
+            <path d="M178 93C196 106 194 148 192 166C190 183 177 192 158 192C139 192 126 183 124 166C122 148 120 106 138 93C145 88 151 86 158 86C165 86 172 88 178 93Z"/>
+            <path d="M140 98C132 84 126 68 122 50C120 40 124 30 132 31C140 32 142 42 144 56C146 70 147 84 144 98Z"/>
+            <path d="M174 98C184 84 198 68 210 54C218 44 214 32 204 34C194 36 190 50 182 64C176 76 174 88 172 98Z"/>
+          </g>
+        </svg>
+      </div>
+      <span class="tag">72 px</span>
+    </div>
+    <div class="preview-item">
+      <div class="icon-wrap xs">
+        <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+          <rect class="bg-rect" width="240" height="240" fill="#B6F34A"/>
+          <g class="left-fig" fill="#0a0a0a">
+            <circle cx="82" cy="68" r="21"/>
+            <path d="M62 93C44 106 46 148 48 166C50 183 63 192 82 192C101 192 114 183 116 166C118 148 120 106 102 93C95 88 89 86 82 86C75 86 68 88 62 93Z"/>
+            <path d="M100 98C108 84 114 68 118 50C120 40 116 30 108 31C100 32 98 42 96 56C94 70 93 84 96 98Z"/>
+          </g>
+          <g class="right-fig" fill="#0a0a0a">
+            <circle cx="158" cy="68" r="21"/>
+            <path d="M178 93C196 106 194 148 192 166C190 183 177 192 158 192C139 192 126 183 124 166C122 148 120 106 138 93C145 88 151 86 158 86C165 86 172 88 178 93Z"/>
+            <path d="M140 98C132 84 126 68 122 50C120 40 124 30 132 31C140 32 142 42 144 56C146 70 147 84 144 98Z"/>
+          </g>
+        </svg>
+      </div>
+      <span class="tag">48 px</span>
+    </div>
+  </div>
+
+  <p class="label" style="opacity:0.5;">Apart &rarr; Come together &rarr; High-five &#10022; Bounce &rarr; Reset &rarr; &infin; Loop</p>
+</body>
+</html>
