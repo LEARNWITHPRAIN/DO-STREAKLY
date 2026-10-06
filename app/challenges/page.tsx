@@ -46,7 +46,7 @@ export default function ChallengesPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold text-amber-400">
-                JOURNEY TAB
+                CHALLENGE TAB
               </span>
               <h1 className="font-display text-2xl md:text-3xl font-black text-white tracking-tight">
                 Friend Challenges
@@ -94,7 +94,25 @@ export default function ChallengesPage() {
           </div>
         </div>
 
-        {/* Challenges Grid */}
+        {/* Challenges Grid or Empty State */}
+        {challenges.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-amber-500/20 bg-[#0E1611] p-12 text-center">
+            <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <Swords className="h-6 w-6 text-amber-400" />
+            </div>
+            <h3 className="font-display text-base font-bold text-white mb-1">No challenges yet</h3>
+            <p className="text-sm text-gray-400 mb-6 max-w-sm mx-auto">
+              Create a challenge, set a daily habit and point stake, then invite friends via a unique code.
+            </p>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="gap-2 bg-[#B6F34A] text-[#0B0F0D] hover:bg-[#a3e635] font-bold"
+            >
+              <Plus className="h-4 w-4 stroke-[3]" />
+              Create First Challenge
+            </Button>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {challenges.map((challenge) => {
             const habitsCount = challenge.habits?.length || 1;
@@ -172,6 +190,7 @@ export default function ChallengesPage() {
             );
           })}
         </div>
+        )}
       </div>
 
       <CreateChallengeModal

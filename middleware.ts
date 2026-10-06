@@ -5,9 +5,7 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute =
     pathname === '/login' ||
-    pathname === '/signup' ||
-    pathname === '/forgot-password' ||
-    pathname === '/reset-password';
+    pathname === '/signup';
 
   const isProtectedRoute =
     pathname.startsWith('/dashboard') ||
@@ -15,8 +13,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/challenges') ||
     pathname.startsWith('/leaderboard') ||
     pathname.startsWith('/friends') ||
-    pathname.startsWith('/profile') ||
-    pathname.startsWith('/onboarding');
+    pathname.startsWith('/profile');
 
   const isDemo = request.cookies.get('streakly_demo')?.value === 'true';
 
@@ -54,10 +51,7 @@ export const config = {
     '/leaderboard/:path*',
     '/friends/:path*',
     '/profile/:path*',
-    '/onboarding/:path*',
     '/login',
     '/signup',
-    '/forgot-password',
-    '/reset-password',
   ],
 };

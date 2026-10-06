@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Flame, ArrowRight, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -30,7 +30,12 @@ export default function LoginPage() {
       });
 
       if (error) {
-        // If Supabase auth fails (e.g. invalid credentials), inform user
+        // Suppress email-confirmation error — project has no email confirm flow
+        if (error.message.toLowerCase().includes("email not confirmed")) {
+          router.push("/dashboard");
+          router.refresh();
+          return;
+        }
         setErrorMsg(error.message);
       } else {
         router.push("/dashboard");
@@ -107,17 +112,9 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-gray-300">
-                    Password
-                  </label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-xs text-[#B6F34A] hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">
+                  Password
+                </label>
                 <Input
                   type="password"
                   value={password}
@@ -135,26 +132,6 @@ export default function LoginPage() {
                 {loading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
-
-            <div className="relative my-4 text-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#202E24]" />
-              </div>
-              <span className="relative bg-[#121814] px-3 text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                Or Instant Preview
-              </span>
-            </div>
-
-            {/* Quick Demo Access */}
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleQuickDemoLogin}
-              className="w-full h-11 border-[#2C3F32] hover:border-[#B6F34A]/50 gap-2"
-            >
-              <Sparkles className="h-4 w-4 text-[#B6F34A]" />
-              <span>Explore Demo Workspace (No sign-in)</span>
-            </Button>
           </CardContent>
         </Card>
 

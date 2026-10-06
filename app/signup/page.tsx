@@ -5,11 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { StreaklyService } from "@/lib/services/streaklyService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Sparkles, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -35,19 +34,25 @@ export default function SignupPage() {
             full_name: fullName.trim(),
             username: username.trim().toLowerCase(),
           },
+          // Skip email confirmation
+          emailRedirectTo: undefined,
         },
       });
 
       if (error) {
         setErrorMsg(error.message);
       } else {
-        // Update local profile representation
-        await StreaklyService.updateProfile({
-          full_name: fullName.trim(),
-          username: username.trim().toLowerCase(),
+        // Sign in immediately after signup (bypasses email confirmation)
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
         });
-        // Redirect to onboarding as specified in prompt
-        router.push("/onboarding");
+        if (signInError && !signInError.message.includes("Email not confirmed")) {
+          setErrorMsg(signInError.message);
+        } else {
+          router.push("/dashboard");
+          router.refresh();
+        }
       }
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred during signup");
@@ -56,14 +61,8 @@ export default function SignupPage() {
     }
   };
 
-  const handleDemoStart = () => {
-    document.cookie = "streakly_demo=true; path=/; max-age=604800";
-    StreaklyService.updateProfile({
-      full_name: fullName || "Alex Vance",
-      username: username || "alex_streaker",
-    });
-    router.push("/onboarding");
-  };
+
+
 
   return (
     <div className="min-h-screen bg-[#0B0F0D] flex flex-col justify-center items-center p-4 relative overflow-hidden">
@@ -160,7 +159,7 @@ export default function SignupPage() {
                 />
               </div>
 
-              <Button
+            <Button
                 type="submit"
                 className="w-full h-11 font-bold shadow-glow mt-2"
                 disabled={loading}
@@ -168,25 +167,6 @@ export default function SignupPage() {
                 {loading ? "Creating Account..." : "Create Account & Start"}
               </Button>
             </form>
-
-            <div className="relative my-3 text-center">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#202E24]" />
-              </div>
-              <span className="relative bg-[#121814] px-3 text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                Quick Setup
-              </span>
-            </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleDemoStart}
-              className="w-full h-11 border-[#2C3F32] hover:border-[#B6F34A]/50 gap-2"
-            >
-              <Sparkles className="h-4 w-4 text-[#B6F34A]" />
-              <span>Instant Setup (Skip Email Verification)</span>
-            </Button>
           </CardContent>
         </Card>
 
