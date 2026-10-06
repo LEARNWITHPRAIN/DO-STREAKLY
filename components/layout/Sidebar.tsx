@@ -30,10 +30,10 @@ const NAV_ITEMS = [
     id: "sidebar-today-tab",
   },
   {
-    name: "Journey",
+    name: "Challenge",
     href: "/challenges",
     icon: Swords,
-    badge: "Friend Challenges",
+    badge: "Friends",
     id: "nav-journey-tab-desktop",
   },
   {

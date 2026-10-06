@@ -262,11 +262,11 @@ export default function DashboardPage() {
                 Compete & Earn Points
               </h3>
               <p className="text-xs text-gray-300 mt-1">
-                Challenge friends in the Journey tab with custom point stakes.
+                Challenge friends in the Challenge tab with custom point stakes.
               </p>
             </div>
             <div className="mt-3 flex items-center gap-1 text-xs font-bold text-amber-400">
-              <span>View Journey</span>
+              <span>View Challenges</span>
               <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>

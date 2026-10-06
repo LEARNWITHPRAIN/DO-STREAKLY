@@ -14,14 +14,14 @@ const NAV_ITEMS = [
     id: "nav-today-tab",
   },
   {
-    name: "Journey",
+    name: "Challenge",
     href: "/challenges",
     icon: Swords,
-    id: "nav-journey-tab", // Needed for Step 5 in tutorial
+    id: "nav-journey-tab", // Keep ID for tutorial compatibility
     highlight: true,
   },
   {
-    name: "Me",
+    name: "Profile",
     href: "/profile",
     icon: User,
     id: "nav-me-tab",
@@ -32,8 +32,8 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[#202E24] bg-[#0B0F0D]/95 backdrop-blur-xl px-4 py-1.5 safe-area-inset-bottom">
-      <div className="flex items-center justify-around max-w-md mx-auto">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[#202E24] bg-[#0B0F0D]/98 backdrop-blur-xl px-2 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}>
+      <div className="flex items-stretch justify-around w-full max-w-md mx-auto">
         {NAV_ITEMS.map((item) => {
           const isActive =
             (item.href === "/dashboard" && (pathname === "/dashboard" || pathname === "/today")) ||
@@ -46,7 +46,7 @@ export function BottomNav() {
               id={item.id}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center py-1 px-4 rounded-xl transition-all duration-150 min-w-[72px]",
+                "flex flex-col items-center justify-center pt-2 pb-1 px-3 flex-1 rounded-xl transition-all duration-150 active:scale-95",
                 isActive
                   ? "text-[#B6F34A]"
                   : "text-gray-400 hover:text-gray-200"
@@ -55,7 +55,7 @@ export function BottomNav() {
               <div className="relative">
                 <Icon
                   className={cn(
-                    "h-5 w-5 transition-transform",
+                    "h-5 w-5 transition-transform duration-150",
                     isActive ? "scale-110 text-[#B6F34A]" : "text-gray-400"
                   )}
                 />
@@ -65,12 +65,15 @@ export function BottomNav() {
               </div>
               <span
                 className={cn(
-                  "text-[11px] tracking-tight mt-1 font-medium",
+                  "text-[10px] tracking-tight mt-1 font-medium",
                   isActive ? "font-bold text-[#B6F34A]" : "text-gray-400"
                 )}
               >
                 {item.name}
               </span>
+              {isActive && (
+                <span className="mt-1 h-0.5 w-4 rounded-full bg-[#B6F34A]" />
+              )}
             </Link>
           );
         })}

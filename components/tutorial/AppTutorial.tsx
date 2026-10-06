@@ -43,7 +43,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     targetId: "nav-journey-tab",
     fallbackTargetId: "nav-journey-tab-desktop",
-    title: "Journey",
+    title: "Challenge",
     description: "Challenge your friends here.",
     placement: "top",
   },
