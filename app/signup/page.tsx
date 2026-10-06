@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -26,7 +26,9 @@ export default function SignupPage() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signUp({
+
+      // Step 1: Register the user (creates unconfirmed user + triggers profile creation)
+      const { error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -34,35 +36,48 @@ export default function SignupPage() {
             full_name: fullName.trim(),
             username: username.trim().toLowerCase(),
           },
-          // Skip email confirmation
-          emailRedirectTo: undefined,
         },
       });
 
-      if (error) {
-        setErrorMsg(error.message);
-      } else {
-        // Sign in immediately after signup (bypasses email confirmation)
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (signInError && !signInError.message.includes("Email not confirmed")) {
-          setErrorMsg(signInError.message);
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes("already registered")) {
+          setErrorMsg("This email is already registered. Please log in instead.");
         } else {
-          router.push("/dashboard");
-          router.refresh();
+          setErrorMsg(signUpError.message);
         }
+        return;
       }
+
+      // Step 2: Use server-side route to confirm email + sign in immediately
+      const res = await fetch("/api/auth/confirm-and-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setErrorMsg(data.error || "Account created but login failed. Please log in manually.");
+        return;
+      }
+
+      // Step 3: Set session client-side
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      }
+
+      router.push("/dashboard");
+      router.refresh();
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred during signup");
     } finally {
       setLoading(false);
     }
   };
-
-
-
 
   return (
     <div className="min-h-screen bg-[#0B0F0D] flex flex-col justify-center items-center p-4 relative overflow-hidden">
@@ -73,30 +88,19 @@ export default function SignupPage() {
         <div className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center gap-3 group">
             <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-[#B6F34A]/50 shadow-glow-sm transition-transform group-hover:scale-105">
-              <Image
-                src="/logo.jpg"
-                alt="DO STREAKLY"
-                fill
-                className="object-cover"
-                priority
-              />
+              <Image src="/logo.jpg" alt="DO STREAKLY" fill className="object-cover" priority />
             </div>
             <span className="font-display text-2xl font-black tracking-tight text-white flex items-center">
               DO <span className="text-[#B6F34A] ml-1.5">STREAKLY</span>
             </span>
           </Link>
-          <p className="text-sm text-gray-400">
-            Better habits. Together. Join the streak revolution.
-          </p>
+          <p className="text-sm text-gray-400">Better habits. Together. Join the streak revolution.</p>
         </div>
 
-        {/* Signup Card */}
         <Card className="border-[#202E24] bg-[#121814] shadow-2xl shadow-black/80">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl">Create Your Account</CardTitle>
-            <CardDescription>
-              Start tracking daily habits and challenging your friends.
-            </CardDescription>
+            <CardDescription>Start tracking daily habits and challenging your friends.</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-4">
@@ -109,9 +113,7 @@ export default function SignupPage() {
 
             <form onSubmit={handleSignup} className="space-y-3.5">
               <div>
-                <label className="text-xs font-semibold text-gray-300 block mb-1">
-                  Full Name
-                </label>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">Full Name</label>
                 <Input
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
@@ -121,9 +123,7 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-300 block mb-1">
-                  Username
-                </label>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">Username</label>
                 <Input
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -133,9 +133,7 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-300 block mb-1">
-                  Email Address
-                </label>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">Email Address</label>
                 <Input
                   type="email"
                   value={email}
@@ -146,9 +144,7 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-300 block mb-1">
-                  Password
-                </label>
+                <label className="text-xs font-semibold text-gray-300 block mb-1">Password</label>
                 <Input
                   type="password"
                   value={password}
@@ -159,18 +155,18 @@ export default function SignupPage() {
                 />
               </div>
 
-            <Button
+              <Button
                 type="submit"
-                className="w-full h-11 font-bold shadow-glow mt-2"
+                className="w-full h-11 font-bold shadow-glow mt-2 gap-2"
                 disabled={loading}
               >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {loading ? "Creating Account..." : "Create Account & Start"}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        {/* Login Link */}
         <p className="text-center text-xs text-gray-400">
           Already have an account?{" "}
           <Link href="/login" className="text-[#B6F34A] font-bold hover:underline">
