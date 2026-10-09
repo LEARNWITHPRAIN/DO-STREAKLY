@@ -2,96 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #0B0F0D;
-  --surface: #121814;
-  --surface-elevated: #17211B;
-  --surface-highlight: #1F2E25;
-  --border: #202E24;
-  --border-light: #2C3F32;
-  --brand-lime: #B6F34A;
-  --brand-green: #84CC16;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  background-color: #0B0F0D;
-  color: #F3F4F6;
-  min-height: 100vh;
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Custom Scrollbar for sleek dark look */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0B0F0D;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #202E24;
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #2C3F32;
-}
-
-/* Selection Color */
-::selection {
-  background: rgba(182, 243, 74, 0.3);
-  color: #FFFFFF;
-}
-
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(18, 24, 20, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(44, 63, 50, 0.6);
-}
-
-.glass-panel-elevated {
-  background: rgba(23, 33, 27, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(182, 243, 74, 0.2);
-}
-
-.lime-glow-hover:hover {
-  box-shadow: 0 0 20px -2px rgba(182, 243, 74, 0.4);
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(182, 243, 74, 0.2);
+@layer base {
+  html, body {
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    background-color: #121413;
+    overscroll-behavior: none;
   }
-  50% {
-    box-shadow: 0 0 25px rgba(182, 243, 74, 0.45);
+
+  ::-webkit-scrollbar { display: none; }
+
+  .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
+
+  main > :first-child { margin-top: 0 !important; }
+  main > :last-child  { margin-bottom: 0 !important; }
+}
+
+@layer utilities {
+  /* Material Symbols helper */
+  .mat-icon {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
   }
-}
-
-.pulse-lime {
-  animation: pulseGlow 2.5s infinite ease-in-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  .mat-filled {
+    font-variation-settings: 'FILL' 1;
   }
 }

@@ -1,13 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -16,22 +9,19 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0B0F0D",
+  themeColor: "#121413",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
-  title: "DO STREAKLY — Better habits. Together.",
-  description:
-    "Build habits together. Challenge your friends. Stay accountable. Personal habit tracking with high-stakes social challenges, XP, and streak leaderboards.",
+  title: "DO STREAKLY",
+  description: "Build habits together. Challenge your friends. Stay accountable.",
   manifest: "/manifest.json",
-  icons: {
-    icon: "/logo.jpg",
-    apple: "/logo.jpg",
-  },
+  icons: { icon: "/logo.jpg", apple: "/logo.jpg" },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -39,19 +29,31 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} dark`}>
+    <html lang="en" className={`${spaceGrotesk.variable} dark`}>
       <head>
+        {/* Material Symbols Outlined */}
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin=""
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&family=Geist:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap"
+          rel="stylesheet"
+        />
         <link rel="apple-touch-icon" href="/logo.jpg" />
       </head>
-      <body className="bg-background text-gray-100 min-h-screen antialiased selection:bg-[#B6F34A]/30 selection:text-white">
+      <body
+        className="bg-surface text-on-surface antialiased"
+        style={{ fontFamily: "Geist, sans-serif" }}
+      >
         {children}
-        <ServiceWorkerRegister />
       </body>
     </html>
   );

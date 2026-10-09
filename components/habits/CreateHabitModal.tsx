@@ -1,317 +1,176 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { StreaklyService } from "@/lib/services/streaklyService";
-import { Habit, TimeOfDay } from "@/types";
-import {
-  Flame,
-  Footprints,
-  BookOpen,
-  Dumbbell,
-  Brain,
-  AlarmClock,
-  Droplets,
-  Heart,
-  Target,
-  Sparkles,
-  Timer,
-  Clock,
-} from "lucide-react";
+import { useState } from 'react';
+import type { CreateHabitInput, HabitType, HabitSchedule } from '@/types';
+
+const ICONS = ['🔥','💪','📖','🏃','🧘','💧','🥗','⚡','🎯','🌅','💤','🚴','✍️','🧠','🎵'];
 
 interface CreateHabitModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onHabitCreated: (habit: Habit) => void;
+  onClose: () => void;
+  onCreate: (input: CreateHabitInput) => Promise<void>;
+  initial?: Partial<CreateHabitInput> & { id?: string };
 }
 
-const AVAILABLE_ICONS = [
-  { name: "Flame", icon: Flame },
-  { name: "Footprints", icon: Footprints },
-  { name: "BookOpen", icon: BookOpen },
-  { name: "Dumbbell", icon: Dumbbell },
-  { name: "Brain", icon: Brain },
-  { name: "AlarmClock", icon: AlarmClock },
-  { name: "Droplets", icon: Droplets },
-  { name: "Heart", icon: Heart },
-  { name: "Target", icon: Target },
-];
+export default function CreateHabitModal({ onClose, onCreate, initial }: CreateHabitModalProps) {
+  const [name,     setName]     = useState(initial?.name     ?? '');
+  const [icon,     setIcon]     = useState(initial?.icon     ?? '🔥');
+  const [type,     setType]     = useState<HabitType>(initial?.type ?? 'fixed');
+  const [unit,     setUnit]     = useState(initial?.unit     ?? 'reps');
+  const [goal,     setGoal]     = useState<number>(initial?.goal ?? 10);
+  const [schedule, setSchedule] = useState<HabitSchedule>(initial?.schedule ?? 'daily');
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
 
-export function CreateHabitModal({
-  open,
-  onOpenChange,
-  onHabitCreated,
-}: CreateHabitModalProps) {
-  const [type, setType] = useState<"yes_no" | "measurable">("yes_no");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState("Flame");
-  const [goal, setGoal] = useState(1);
-  const [unit, setUnit] = useState("times");
-  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>("morning");
-  const [useTimer, setUseTimer] = useState(false);
-  const [timerMinutes, setTimerMinutes] = useState(25);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
-
-    setIsSubmitting(true);
+    if (!name.trim()) { setError('Habit name is required'); return; }
+    setLoading(true);
+    setError('');
     try {
-      const created = await StreaklyService.createHabit({
-        name: name.trim(),
-        title: name.trim(),
-        description: description.trim(),
-        icon,
-        type,
-        goal: type === "measurable" ? Number(goal) || 1 : 1,
-        unit: type === "measurable" ? unit.trim() || "reps" : "times",
-        time_of_day: timeOfDay,
-        use_timer: useTimer,
-        timer_duration_seconds: useTimer ? timerMinutes * 60 : undefined,
-      });
-
-      onHabitCreated(created);
-      onOpenChange(false);
-
-      // Reset form
-      setName("");
-      setDescription("");
-      setType("yes_no");
-      setGoal(1);
-      setUnit("times");
-      setTimeOfDay("morning");
-      setUseTimer(false);
-      setTimerMinutes(25);
-    } catch (err) {
-      console.error("Failed to create habit:", err);
+      await onCreate({ name: name.trim(), icon, type, unit, goal, schedule });
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#B6F34A]" />
-          <span>Create Daily Habit</span>
-        </DialogTitle>
-        <DialogDescription>
-          Build consistency with streaks, calendar records, and optional focus timers.
-        </DialogDescription>
-      </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Habit Type Tabs */}
-        <div>
-          <label className="text-xs font-semibold text-gray-300 block mb-1.5">
-            Habit Type
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setType("yes_no");
-                setUnit("times");
-                setGoal(1);
-              }}
-              className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                type === "yes_no"
-                  ? "border-[#B6F34A] bg-[#1F2E25] text-[#B6F34A] shadow-glow-sm"
-                  : "border-[#202E24] bg-[#0B0F0D] text-gray-400 hover:border-[#2C3F32]"
-              }`}
-            >
-              YES / NO (Done / Not Done)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setType("measurable");
-                setUnit("reps");
-                setGoal(20);
-              }}
-              className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                type === "measurable"
-                  ? "border-[#B6F34A] bg-[#1F2E25] text-[#B6F34A] shadow-glow-sm"
-                  : "border-[#202E24] bg-[#0B0F0D] text-gray-400 hover:border-[#2C3F32]"
-              }`}
-            >
-              MEASURABLE (Target Value)
-            </button>
-          </div>
+      {/* Sheet */}
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-10 w-full sm:max-w-md bg-surface-container rounded-t-2xl sm:rounded-2xl p-6 flex flex-col gap-space-md shadow-2xl"
+      >
+        <div className="flex items-center justify-between">
+          <span className="font-headline-md text-headline-md text-on-surface">
+            {initial?.id ? 'Edit Habit' : 'New Habit'}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
         </div>
 
-        {/* Name */}
+        {/* Icon picker */}
         <div>
-          <label className="text-xs font-semibold text-gray-300 block mb-1">
-            Habit Name *
-          </label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Morning 5km Run, Meditate, Read 20 Pages"
-            className="bg-[#0B0F0D] border-[#202E24] text-white"
-            required
-            autoFocus
-          />
-        </div>
-
-        {/* Time of Day */}
-        <div>
-          <label className="text-xs font-semibold text-gray-300 block mb-1">
-            Time of Day (Category)
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { id: "morning", label: "Morning" },
-              { id: "afternoon", label: "Afternoon" },
-              { id: "evening", label: "Evening" },
-              { id: "anytime", label: "Anytime" },
-            ].map((t) => (
+          <label className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider">Icon</label>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {ICONS.map((ic) => (
               <button
-                key={t.id}
+                key={ic}
                 type="button"
-                onClick={() => setTimeOfDay(t.id as TimeOfDay)}
-                className={`py-1.5 text-xs font-bold rounded-xl border transition-all ${
-                  timeOfDay === t.id
-                    ? "border-[#B6F34A] bg-[#1F2E25] text-[#B6F34A]"
-                    : "border-[#202E24] bg-[#0B0F0D] text-gray-400 hover:border-[#2C3F32]"
+                onClick={() => setIcon(ic)}
+                className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
+                  icon === ic
+                    ? 'bg-primary-fixed text-on-primary scale-110'
+                    : 'bg-surface-container-high text-on-surface hover:scale-110'
                 }`}
               >
-                {t.label}
+                {ic}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Measurable fields if applicable */}
-        {type === "measurable" && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-gray-300 block mb-1">
-                Daily Goal
-              </label>
-              <Input
+        {/* Name */}
+        <div>
+          <label className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. No Junk Food"
+            className="mt-1 w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2.5 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary-fixed transition-colors"
+          />
+        </div>
+
+        {/* Type toggle */}
+        <div>
+          <label className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider">Type</label>
+          <div className="flex items-center bg-surface-container-low p-1 rounded-xl border border-outline-variant/60 mt-1">
+            {(['fixed', 'variable'] as HabitType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                className={`flex-1 py-2 text-center rounded-lg font-body-bold text-body-bold transition-all ${
+                  type === t
+                    ? 'bg-primary-fixed text-on-primary shadow-sm'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                {t === 'fixed' ? '✅ Fixed (pass/fail)' : '📊 Variable (count)'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Variable options */}
+        {type === 'variable' && (
+          <div className="flex gap-space-sm">
+            <div className="flex-1">
+              <label className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider">Goal</label>
+              <input
                 type="number"
                 min={1}
                 value={goal}
                 onChange={(e) => setGoal(Number(e.target.value))}
-                className="bg-[#0B0F0D] border-[#202E24] text-white"
-                required
+                className="mt-1 w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2.5 font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary-fixed transition-colors"
               />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-gray-300 block mb-1">
-                Unit
-              </label>
-              <Input
+            <div className="flex-1">
+              <label className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider">Unit</label>
+              <input
+                type="text"
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
-                placeholder="reps, km, pages, mins"
-                className="bg-[#0B0F0D] border-[#202E24] text-white"
-                required
+                placeholder="reps / min / km"
+                className="mt-1 w-full bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2.5 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:border-primary-fixed transition-colors"
               />
             </div>
           </div>
         )}
 
-        {/* Focus Timer Option */}
-        <div className="rounded-2xl border border-[#202E24] bg-[#0B0F0D] p-3 space-y-2">
-          <label className="flex items-center justify-between cursor-pointer">
-            <div className="flex items-center gap-2">
-              <Timer className="h-4 w-4 text-amber-400" />
-              <span className="text-xs font-bold text-white">Enable Focus Timer</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={useTimer}
-              onChange={(e) => setUseTimer(e.target.checked)}
-              className="accent-[#B6F34A] h-4 w-4 rounded"
-            />
-          </label>
-
-          {useTimer && (
-            <div className="pt-2 flex items-center justify-between gap-3 border-t border-[#1C2922]">
-              <span className="text-xs text-gray-400">Duration (Minutes):</span>
-              <Input
-                type="number"
-                min={1}
-                max={180}
-                value={timerMinutes}
-                onChange={(e) => setTimerMinutes(Number(e.target.value))}
-                className="w-24 bg-[#121814] border-[#202E24] text-xs text-white"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Icon Selection */}
+        {/* Schedule */}
         <div>
-          <label className="text-xs font-semibold text-gray-300 block mb-2">
-            Select Icon
-          </label>
-          <div className="grid grid-cols-9 gap-1.5">
-            {AVAILABLE_ICONS.map((item) => {
-              const IconComp = item.icon;
-              const isSelected = icon === item.name;
-              return (
-                <button
-                  key={item.name}
-                  type="button"
-                  onClick={() => setIcon(item.name)}
-                  className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all ${
-                    isSelected
-                      ? "bg-[#B6F34A] text-[#0B0F0D] scale-105 shadow-glow-sm"
-                      : "bg-[#0B0F0D] text-gray-400 border border-[#202E24] hover:border-[#2C3F32] hover:text-white"
-                  }`}
-                >
-                  <IconComp className="h-4 w-4" />
-                </button>
-              );
-            })}
+          <label className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider">Schedule</label>
+          <div className="relative mt-1">
+            <select
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value as HabitSchedule)}
+              className="w-full appearance-none bg-surface-container-high border border-outline-variant rounded-lg px-3 py-2.5 font-body-md text-body-md text-on-surface focus:outline-none focus:border-primary-fixed cursor-pointer pr-10"
+            >
+              <option value="daily">Every day</option>
+              <option value="weekdays">Weekdays (Mon–Fri)</option>
+              <option value="weekends">Weekends (Sat–Sun)</option>
+            </select>
+            <span className="material-symbols-outlined pointer-events-none absolute right-3 top-2.5 text-on-surface-variant text-[20px]">expand_more</span>
           </div>
         </div>
 
-        {/* Description */}
-        <div>
-          <label className="text-xs font-semibold text-gray-300 block mb-1">
-            Why this habit? (Optional reminder)
-          </label>
-          <Input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g. To start the day energized and focused"
-            className="bg-[#0B0F0D] border-[#202E24] text-white"
-          />
-        </div>
+        {error && (
+          <p className="font-label-sm text-label-sm text-error">{error}</p>
+        )}
 
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#202E24]">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting || !name.trim()}
-            className="bg-[#B6F34A] text-[#0B0F0D] hover:bg-[#a3e635] font-bold"
-          >
-            {isSubmitting ? "Creating..." : "Save Habit"}
-          </Button>
-        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 rounded-xl bg-primary-fixed text-on-primary font-body-bold text-body-bold hover:brightness-105 active:scale-[0.99] transition-all disabled:opacity-60"
+        >
+          {loading ? 'Saving…' : initial?.id ? 'Save Changes' : 'Create Habit'}
+        </button>
       </form>
-    </Dialog>
+    </div>
   );
 }

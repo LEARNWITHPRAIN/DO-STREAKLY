@@ -1,79 +1,46 @@
-"use client";
+'use client';
 
-import React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CalendarCheck2, Swords, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-const NAV_ITEMS = [
-  {
-    name: "Today",
-    href: "/dashboard",
-    icon: CalendarCheck2,
-    id: "nav-today-tab",
-  },
-  {
-    name: "Challenge",
-    href: "/challenges",
-    icon: Swords,
-    id: "nav-journey-tab", // Keep ID for tutorial compatibility
-    highlight: true,
-  },
-  {
-    name: "Profile",
-    href: "/profile",
-    icon: User,
-    id: "nav-me-tab",
-  },
+const tabs = [
+  { href: '/dashboard/habits',      icon: 'check_circle', label: 'Habits'      },
+  { href: '/dashboard/challenges',  icon: 'bolt',         label: 'Challenges'  },
+  { href: '/dashboard/leaderboard', icon: 'trophy',       label: 'Leaderboard' },
+  { href: '/dashboard/profile',     icon: 'person',       label: 'Profile'     },
 ];
 
-export function BottomNav() {
+export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-[#202E24] bg-[#0B0F0D]/98 backdrop-blur-xl px-2 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}>
-      <div className="flex items-stretch justify-around w-full max-w-md mx-auto">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            (item.href === "/dashboard" && (pathname === "/dashboard" || pathname === "/today")) ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
-          const Icon = item.icon;
-
+    <nav
+      className="fixed bottom-0 w-full z-50 pb-safe"
+      style={{
+        background: 'rgba(18,20,19,0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 -1px 0 rgba(66,73,51,0.4)',
+      }}
+    >
+      <div className="flex justify-around items-center h-16 px-gutter">
+        {tabs.map((tab) => {
+          const active = pathname === tab.href || pathname.startsWith(tab.href + '/');
           return (
             <Link
-              key={item.href}
-              id={item.id}
-              href={item.href}
-              className={cn(
-                "flex flex-col items-center justify-center pt-2 pb-1 px-3 flex-1 rounded-xl transition-all duration-150 active:scale-95",
-                isActive
-                  ? "text-[#B6F34A]"
-                  : "text-gray-400 hover:text-gray-200"
-              )}
+              key={tab.href}
+              href={tab.href}
+              className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-1 transition-colors ${
+                active ? 'text-primary-fixed' : 'text-on-surface-variant hover:text-on-surface'
+              }`}
             >
-              <div className="relative">
-                <Icon
-                  className={cn(
-                    "h-5 w-5 transition-transform duration-150",
-                    isActive ? "scale-110 text-[#B6F34A]" : "text-gray-400"
-                  )}
-                />
-                {item.highlight && !isActive && (
-                  <span className="absolute -top-0.5 -right-1 h-2 w-2 rounded-full bg-[#B6F34A] animate-pulse" />
-                )}
-              </div>
               <span
-                className={cn(
-                  "text-[10px] tracking-tight mt-1 font-medium",
-                  isActive ? "font-bold text-[#B6F34A]" : "text-gray-400"
-                )}
+                className="material-symbols-outlined text-[22px]"
+                style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
               >
-                {item.name}
+                {tab.icon}
               </span>
-              {isActive && (
-                <span className="mt-1 h-0.5 w-4 rounded-full bg-[#B6F34A]" />
-              )}
+              <span className="font-label-sm text-label-sm">{tab.label}</span>
             </Link>
           );
         })}
